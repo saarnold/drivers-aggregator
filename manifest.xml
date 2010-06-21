@@ -1,0 +1,16 @@
+<package>
+    <description brief="basic tools to manage sample streams">
+        This library offers basic tools to manage sample streams. The
+        SampleReader class for instance allows to reorder data samples and
+        "wait" for acquisitions in which latency is non negligible.
+        TimestampEstimator does a best-guess of a stream of samples that come at
+        a fixed, unknown period.
+    </description>
+    <author>Jakob Schwendner/jakob.schwendner@dfki.de</author>
+    <copyright>
+        DFKI/robotik@dfki.de
+    </copyright>
+    <license>LGPL v2 or later</license>
+
+    <depend package="base" />
+</package>
