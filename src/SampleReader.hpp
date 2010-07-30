@@ -47,6 +47,11 @@ namespace aggregator {
 
 	    void push( base::Time ts, T data ) 
 	    { 
+		if( ts < lastTime )
+		    return;
+
+		lastTime = ts;
+
 		// if the buffer is full, make some space
 		// sorry old data, you gotta go!
 		while( bufferSize > 0 && buffer.size() >= bufferSize )
@@ -64,9 +69,6 @@ namespace aggregator {
 	    { 
 		if( hasData() )
 		{
-		    if( buffer.size() == 1 )
-			lastTime = buffer.back().first;
-
 		    if( !late ) {
 			overdue = false;
 			callback( buffer.front().first, buffer.front().second );
@@ -77,16 +79,14 @@ namespace aggregator {
 	    }
 
 	    bool hasData() const
-	    { return buffer.size() > 0; }
+	    { return !buffer.empty(); }
 
 	    base::Time nextTimeStamp() const
 	    {
 		if( hasData() )
 		    return buffer.front().first;
-		else if( !period.isNull() && !lastTime.isNull() )
-		    return lastTime + period;
 		else 
-		    return base::Time();
+		    return lastTime + period;
 	    }
 	};
 
@@ -172,19 +172,6 @@ namespace aggregator {
 	    stream->push( ts, data );
 	}
 
-	/** Test if data in a stream is running late
-	 * Note, that the current time is based on the latest reading from another 
-	 * stream and not on the actual system time.
-	 *
-	 * @param idx - index of the stream to be tested
-	 * @result - will return true if the next expected ts from this stream is already older 
-	 *           than the latest timestamp + the timout offset.
-	 */
-	bool isOverdue( int idx )
-	{
-	    return streams[idx]->overdue;
-	}
-
 	/** This will go through the available streams and look for the
 	 * oldest available data. The data can be either existing are predicted
 	 * through the period. 
@@ -203,32 +190,42 @@ namespace aggregator {
 	 */
 	bool step()
 	{
-	    if( !streams.size() )
+	    if( streams.empty() )
 		return false;
 
 	    std::vector<StreamIndex> items;
 	    bool listHasData = false;
 	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
 	    {
-		bool hasData = (*it)->hasData();
-		base::Time ts = (*it)->nextTimeStamp();
+		bool hasData, late;
 
-		// stream is only considered if it either has data,
-		// or is expecting data
-		if( hasData || !ts.isNull() )
-		{
-		    items.push_back( StreamIndex(
-				ts,
-				hasData,
-				*it ) );
-		}
+		// throw out late data
+		do {
+		    base::Time ts = (*it)->nextTimeStamp();
+		    late = (ts < current_ts);
+		    hasData = (*it)->hasData();
+		    if( late && hasData )
+		    {
+			(*it)->pop(late);
+		    }
+		    else if( hasData || !ts.isNull() )
+		    {
+			// stream is only considered if it either has data,
+			// or is expecting data
+			items.push_back( StreamIndex(
+				    ts,
+				    hasData,
+				    *it ) );
 
-		// see if we have any real data
-		listHasData |= hasData;
+			// mark if we have any real data
+			listHasData |= hasData;
+		    }
+		} while( late && hasData );
+
 	    }
 
 	    // return false if we just don't have any data
-	    if( !items.size() || !listHasData )
+	    if( items.empty() || !listHasData )
 		return false;
 
 	    // sort for timestamp
@@ -238,13 +235,9 @@ namespace aggregator {
 	    {
 		if( it->hasData ) 
 		{
-		    bool late = it->time < current_ts;
 		    // if stream has current data, pop that data
-		    // but make sure that no late data gets through
-		    (it->stream)->pop(late);
-		    if( !late ) {
-			current_ts = it->time;
-		    }
+		    (it->stream)->pop(false);
+		    current_ts = it->time;
 		    return true;
 		}
 		else if( (it->time + timeout) > latest_ts )
