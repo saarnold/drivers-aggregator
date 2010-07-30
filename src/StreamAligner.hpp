@@ -12,7 +12,7 @@
 
 namespace aggregator {
 
-    class SampleReader
+    class StreamAligner
     {
 	class StreamBase
 	{
@@ -24,7 +24,7 @@ namespace aggregator {
 		virtual base::Time nextTimeStamp() const = 0;
 		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
 
-		friend std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader::StreamBase &base);
+		friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
 	};
 
 	template <class T> class Stream : public StreamBase
@@ -114,10 +114,10 @@ namespace aggregator {
 	base::Time current_ts;
 
     public:
-	explicit SampleReader(base::Time timeout = base::Time(1))
+	explicit StreamAligner(base::Time timeout = base::Time(1))
 	    : timeout(timeout) {}
 
-	~SampleReader()
+	~StreamAligner()
 	{
 	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
 		delete *it;
@@ -277,11 +277,11 @@ namespace aggregator {
 	    return streams[idx]->getBufferStatus();
 	}
 
-	friend std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader::StreamBase &base);
-	friend std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader &re);
+	friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
+	friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner &re);
     };
 
-    std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader &re)
+    std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner &re)
     {
 	using ::operator <<;
 	stream << "current time: " << re.getCurrentTime() << " latest time:" << re.getLatestTime() << " latency: " << re.getLatency() << std::endl;
@@ -293,7 +293,7 @@ namespace aggregator {
 	return stream;
     }
 
-    std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader::StreamBase &base)
+    std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base)
     {
 	using ::operator <<;
 	const std::pair<size_t, size_t> &status( base.getBufferStatus() );

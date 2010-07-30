@@ -9,7 +9,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/execution_monitor.hpp>  
 
-#include "SampleReader.hpp"
+#include "StreamAligner.hpp"
 
 using namespace aggregator;
 using namespace std;
@@ -23,7 +23,7 @@ void test_callback( const base::Time &time, const string& sample )
 
 BOOST_AUTO_TEST_CASE( order_test )
 {
-    SampleReader reader; 
+    StreamAligner reader; 
     reader.setTimeout( base::Time(2.0) );
 
     // callback, buffer_size, period_time
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE( order_test )
 
 BOOST_AUTO_TEST_CASE( timeout_test )
 {
-    SampleReader reader; 
+    StreamAligner reader; 
     reader.setTimeout( base::Time(2.0) );
 
     // callback, buffer_size, period_time
