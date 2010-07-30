@@ -14,35 +14,54 @@
 using namespace aggregator;
 using namespace std;
 
-template <class T> void reading_callback(base::Time ts, T data)
+string lastSample;
+
+void test_callback( const base::Time &time, const string& sample )
 {
-    cout << "ts: " << ts.seconds << ":" << ts.microseconds << " data: " << data << endl;
+    lastSample = sample;
 }
 
-BOOST_AUTO_TEST_CASE( aggregator_test )
+BOOST_AUTO_TEST_CASE( order_test )
 {
-    SampleReader aggr; 
-    aggr.setTimeout( base::Time(2,0) );
+    SampleReader reader; 
+    reader.setTimeout( base::Time(2.0) );
 
     // callback, buffer_size, period_time
-    int s1 = aggr.registerStream<int>( &reading_callback<int>, 4, base::Time(1,0) ); 
-    int s2 = aggr.registerStream<string>( &reading_callback<string>, 2, base::Time(2,0) ); 
-    int s3 = aggr.registerStream<double>( &reading_callback<double> ); 
+    int s1 = reader.registerStream<string>( &test_callback, 4, base::Time(2,0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 4, base::Time(0,0) ); 
 
-    aggr.push( s1, base::Time(1), 1 );
-    aggr.push( s2, base::Time(0), string("test1") );
-    aggr.push( s2, base::Time(2), string("test2") );
-    aggr.push( s2, base::Time(4), string("test3") );
-    aggr.push( s1, base::Time(2), 2 );
-    aggr.push( s1, base::Time(2), 3 );
-    aggr.push( s1, base::Time(3), 4 );
-    aggr.push( s1, base::Time(4), 5 );
-    aggr.push( s1, base::Time(5), 6 );
-    aggr.push( s3, base::Time(5), 1.55 );
+    reader.push( s1, base::Time(0.0), string("a") ); 
+    reader.push( s1, base::Time(2.0), string("c") ); 
+    reader.push( s2, base::Time(1.0), string("b") ); 
 
-    while( aggr.step() )
-    {
-	std::cout << aggr;
-    }
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "c" );
 }
 
+BOOST_AUTO_TEST_CASE( timeout_test )
+{
+    SampleReader reader; 
+    reader.setTimeout( base::Time(2.0) );
+
+    // callback, buffer_size, period_time
+    int s1 = reader.registerStream<string>( &test_callback, 4, base::Time(2,0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 4, base::Time(0,0) ); 
+
+    reader.push( s1, base::Time(0.0), string("a") ); 
+    reader.push( s1, base::Time(1.0), string("b") ); 
+    reader.push( s1, base::Time(0.0), string("1") ); 
+    reader.push( s1, base::Time(3.0), string("d") ); 
+    reader.push( s2, base::Time(0.0), string("2") ); 
+    reader.push( s2, base::Time(2.0), string("c") ); 
+
+    cout << reader;
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    cout << reader;
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+    cout << reader;
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "c" );
+    cout << reader;
+    reader.step(); BOOST_CHECK_EQUAL( lastSample, "d" );
+    cout << reader;
+}

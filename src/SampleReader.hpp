@@ -27,9 +27,6 @@ namespace aggregator {
 		friend std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader::StreamBase &base);
 	};
 
-	typedef boost::tuple<base::Time,bool,StreamBase*> item;
-	static bool compare_item(item a, item b) {return boost::get<0>(a) < boost::get<0>(b);}
-
 	template <class T> class Stream : public StreamBase
 	{
 	    typedef std::pair<base::Time,T> item;
@@ -93,10 +90,28 @@ namespace aggregator {
 	    }
 	};
 
+	struct StreamIndex
+	{
+	    StreamIndex( const base::Time &time, bool hasData, StreamBase* stream)
+		: time(time), hasData(hasData), stream(stream) {}
+
+	    bool operator <(const StreamIndex &other) const { return time < other.time; }
+
+	    base::Time time;
+	    bool hasData;
+	    StreamBase* stream;
+	};
+
+
 	typedef std::vector<StreamBase*> stream_vector;
 	stream_vector streams;
 	base::Time timeout;
-	base::Time latest_ts, current_ts;
+
+	/** time of the last sample that came in */
+	base::Time latest_ts;
+
+	/** time of the last sample that went out */
+	base::Time current_ts;
 
     public:
 	explicit SampleReader(base::Time timeout = base::Time(1))
@@ -143,7 +158,7 @@ namespace aggregator {
 		throw std::runtime_error("invalid stream index.");
 
 	    // if the timestamp of the data item comming in is older than the current time - timeout, we don't even put it into the queue
-	    if( (ts + timeout) < current_ts )
+	    if( (ts + timeout) < latest_ts )
 	    {
 		return;
 	    }
@@ -191,7 +206,7 @@ namespace aggregator {
 	    if( !streams.size() )
 		return false;
 
-	    std::vector<item> items;
+	    std::vector<StreamIndex> items;
 	    bool listHasData = false;
 	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
 	    {
@@ -202,7 +217,7 @@ namespace aggregator {
 		// or is expecting data
 		if( hasData || !ts.isNull() )
 		{
-		    items.push_back( boost::make_tuple( 
+		    items.push_back( StreamIndex(
 				ts,
 				hasData,
 				*it ) );
@@ -217,23 +232,22 @@ namespace aggregator {
 		return false;
 
 	    // sort for timestamp
-	    std::sort(items.begin(), items.end(), compare_item);
+	    std::sort(items.begin(), items.end());
 
-	    for(std::vector<item>::iterator it=items.begin();it != items.end();it++)
+	    for(std::vector<StreamIndex>::iterator it=items.begin();it != items.end();it++)
 	    {
-
-		if( boost::get<1>(*it) ) 
+		if( it->hasData ) 
 		{
-		    bool late = boost::get<0>(*it) < current_ts;
+		    bool late = it->time < current_ts;
 		    // if stream has current data, pop that data
 		    // but make sure that no late data gets through
-		    boost::get<2>(*it)->pop(late);
+		    (it->stream)->pop(late);
 		    if( !late ) {
-			current_ts = boost::get<0>(*it);
+			current_ts = it->time;
 		    }
 		    return true;
 		}
-		else if( (boost::get<0>(*it) + timeout) > latest_ts )
+		else if( (it->time + timeout) > latest_ts )
 		{
 		    // if there is no data, but the expected data has
 		    // not run out yet, wait for it.
@@ -242,7 +256,7 @@ namespace aggregator {
 		else
 		{
 		    // mark this stream as overdue
-		    boost::get<2>(*it)->overdue = true;
+		    (it->stream)->overdue = true;
 		}
 	    }
 
@@ -257,6 +271,10 @@ namespace aggregator {
 	/** return the time of the last data item that went out
 	 */
 	base::Time getCurrentTime() const { return current_ts; };
+
+	/** return the time of the last data item that came in
+	 */
+	base::Time getLatestTime() const { return latest_ts; }
 
 	/** return the buffer status as a std::pair. first element in pair is
 	 * the current buffer fill and the second element is the buffer size 
@@ -273,7 +291,7 @@ namespace aggregator {
     std::ostream &operator<<(std::ostream &stream, const aggregator::SampleReader &re)
     {
 	using ::operator <<;
-	stream << "latency: " << re.getLatency() << " current time: " << re.getCurrentTime() << std::endl;
+	stream << "current time: " << re.getCurrentTime() << " latest time:" << re.getLatestTime() << " latency: " << re.getLatency() << std::endl;
 	for(size_t i=0;i<re.streams.size();i++)
 	{
 	    stream << i << ":" << *re.streams[i] << std::endl;
