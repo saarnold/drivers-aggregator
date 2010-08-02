@@ -208,10 +208,8 @@ namespace aggregator {
 		    {
 			(*it)->pop(late);
 		    }
-		    else if( hasData )
+		    else
 		    {
-			// stream is only considered if it either has data,
-			// or is expecting data
 			items.push_back( StreamIndex(
 				    ts,
 				    hasData,
