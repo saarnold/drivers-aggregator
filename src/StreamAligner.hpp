@@ -208,7 +208,7 @@ namespace aggregator {
 		    {
 			(*it)->pop(late);
 		    }
-		    else if( hasData || !ts.isNull() )
+		    else if( hasData )
 		    {
 			// stream is only considered if it either has data,
 			// or is expecting data
@@ -240,7 +240,7 @@ namespace aggregator {
 		    current_ts = it->time;
 		    return true;
 		}
-		else if( (it->time + timeout) > latest_ts )
+		else if( (current_time + timeout) > latest_ts )
 		{
 		    // if there is no data, but the expected data has
 		    // not run out yet, wait for it.
