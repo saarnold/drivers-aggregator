@@ -240,7 +240,7 @@ namespace aggregator {
 		    current_ts = it->time;
 		    return true;
 		}
-		else if( (current_time + timeout) > latest_ts )
+		else if( (current_ts + timeout) > latest_ts )
 		{
 		    // if there is no data, but the expected data has
 		    // not run out yet, wait for it.
