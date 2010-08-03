@@ -22,6 +22,7 @@ namespace aggregator {
 		virtual bool hasData() const = 0;
 		virtual base::Time nextTimeStamp() const = 0;
 		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
+		virtual void copyState( const StreamBase& other ) = 0;
 
 		friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
 	};
@@ -42,6 +43,15 @@ namespace aggregator {
 	    virtual std::pair<size_t, size_t> getBufferStatus() const
 	    {
 		return std::make_pair( buffer.size(), bufferSize );
+	    }
+
+	    virtual void copyState( const StreamBase& other )
+	    {
+		const Stream<T> &stream(static_cast<const Stream<T>& >(other));
+
+		lastTime = stream.lastTime;
+		buffer = stream.buffer;
+		bufferSize = stream.bufferSize;
 	    }
 
 	    void push( base::Time ts, T data ) 
@@ -113,6 +123,23 @@ namespace aggregator {
 	{
 	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
 		delete *it;
+	}
+
+	/** will take the state of other StreamAligner and make it the state of this 
+	 * object. State constitutes current_time and latest_time as well as all the stream
+	 * content, but not the configuration.
+	 */
+	void copyState(const StreamAligner& other)
+	{
+	    initialized = other.initialized;
+	    latest_ts = other.latest_ts;
+	    current_ts = other.current_ts;
+
+	    assert( streams.size() == other.streams.size() );
+	    for(size_t i=0;i<streams.size();i++)
+	    {
+		streams[i]->copyState( *other.streams[i] );
+	    }
 	}
 
 	/** Set the time the Estimator will wait for an expected reading on any of the streams.

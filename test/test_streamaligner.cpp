@@ -58,6 +58,32 @@ BOOST_AUTO_TEST_CASE( drop_test )
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
 
+BOOST_AUTO_TEST_CASE( copy_state_test )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time(2.0) );
+
+    // callback, buffer_size, period_time
+    int s1 = reader.registerStream<string>( &test_callback, 5, base::Time(2,0) ); 
+
+    reader.push( s1, base::Time(10.0), string("a") ); 
+    reader.push( s1, base::Time(11.0), string("b") ); 
+    reader.push( s1, base::Time(10.0), string("3") ); 
+
+    StreamAligner reader2;
+    reader2.registerStream<string>( &test_callback, 5, base::Time(2,0) ); 
+    reader2.copyState( reader );
+
+    BOOST_CHECK_EQUAL( reader.getLatency().toSeconds(), reader2.getLatency().toSeconds() );
+
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+
+    lastSample = ""; reader2.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; reader2.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+    lastSample = ""; reader2.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+}
 
 BOOST_AUTO_TEST_CASE( timeout_test )
 {
