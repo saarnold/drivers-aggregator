@@ -17,9 +17,8 @@ namespace aggregator {
 	class StreamBase
 	{
 	    public:
-		StreamBase() : overdue(false) {}
-		bool overdue;
-		virtual void pop(bool late) = 0;
+		StreamBase() {}
+		virtual base::Time pop() = 0;
 		virtual bool hasData() const = 0;
 		virtual base::Time nextTimeStamp() const = 0;
 		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
@@ -63,19 +62,19 @@ namespace aggregator {
 	    }
 
 	    /** take the last item of the stream queue and 
-	     * call the callback in case the data is not late
+	     * call the callback 
 	     */
-	    void pop( bool late = false ) 
+	    base::Time pop() 
 	    { 
 		if( hasData() )
 		{
-		    if( !late ) {
-			overdue = false;
-			callback( buffer.front().first, buffer.front().second );
-		    }
-
+		    base::Time ts = buffer.front().first;
+		    callback( ts, buffer.front().second );
 		    buffer.pop();
+		    return ts;
 		}
+
+		throw std::runtime_error("pop() called on stream with no data.");
 	    }
 
 	    bool hasData() const
@@ -90,22 +89,15 @@ namespace aggregator {
 	    }
 	};
 
-	struct StreamIndex
+	static bool compareStreams( const StreamBase* b1, const StreamBase* b2 )
 	{
-	    StreamIndex( const base::Time &time, bool hasData, StreamBase* stream)
-		: time(time), hasData(hasData), stream(stream) {}
-
-	    bool operator <(const StreamIndex &other) const { return time < other.time; }
-
-	    base::Time time;
-	    bool hasData;
-	    StreamBase* stream;
-	};
-
+	    return b1->nextTimeStamp() < b2->nextTimeStamp();
+	}
 
 	typedef std::vector<StreamBase*> stream_vector;
 	stream_vector streams;
 	base::Time timeout;
+	bool initialized;
 
 	/** time of the last sample that came in */
 	base::Time latest_ts;
@@ -115,7 +107,7 @@ namespace aggregator {
 
     public:
 	explicit StreamAligner(base::Time timeout = base::Time(1))
-	    : timeout(timeout) {}
+	    : timeout(timeout), initialized(false) {}
 
 	~StreamAligner()
 	{
@@ -157,14 +149,23 @@ namespace aggregator {
 	    if( idx < 0 )
 		throw std::runtime_error("invalid stream index.");
 
-	    // if the timestamp of the data item comming in is older than the current time - timeout, we don't even put it into the queue
-	    if( (ts + timeout) < latest_ts )
+	    // if not initialized, set current and latest time to the first
+	    // ts that comes in
+	    if( !initialized )
 	    {
-		return;
+		current_ts = ts;
+		latest_ts = ts;
+		initialized = true;
 	    }
+
+	    // if ts is older than last ts that went out, its not added
+	    // to the queue
+	    if( ts < current_ts )
+		return;
 
 	    if( ts > latest_ts )
 		latest_ts = ts;
+
 
 	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
 	    assert( stream );
@@ -186,71 +187,32 @@ namespace aggregator {
 	 *    case, the oldest data (which is obviously non-available) is ignored,
 	 *    and only newer data is considered.
 	 *
-	 *  @result - true if there is more available data in any of the streams
+	 *  @result - true if a callback was called and more data might be available 
 	 */
 	bool step()
 	{
 	    if( streams.empty() )
 		return false;
 
-	    std::vector<StreamIndex> items;
-	    bool listHasData = false;
-	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
+	    // copy streams vector and sort it by next ts
+	    stream_vector items = streams;
+	    std::sort( items.begin(), items.end(), &compareStreams );
+
+	    for(stream_vector::iterator it=items.begin();it != items.end();it++)
 	    {
-		bool hasData, late;
-
-		// throw out late data
-		do {
-		    base::Time ts = (*it)->nextTimeStamp();
-		    late = (ts < current_ts);
-		    hasData = (*it)->hasData();
-		    if( late && hasData )
-		    {
-			(*it)->pop(late);
-		    }
-		    else
-		    {
-			items.push_back( StreamIndex(
-				    ts,
-				    hasData,
-				    *it ) );
-
-			// mark if we have any real data
-			listHasData |= hasData;
-		    }
-		} while( late && hasData );
-
-	    }
-
-	    // return false if we just don't have any data
-	    if( items.empty() || !listHasData )
-		return false;
-
-	    // sort for timestamp
-	    std::sort(items.begin(), items.end());
-
-	    for(std::vector<StreamIndex>::iterator it=items.begin();it != items.end();it++)
-	    {
-		if( it->hasData ) 
+		if( (*it)->hasData() ) 
 		{
 		    // if stream has current data, pop that data
-		    (it->stream)->pop(false);
-		    current_ts = it->time;
+		    current_ts = (*it)->pop();
 		    return true;
 		}
-		else if( (current_ts + timeout) > latest_ts )
+		else if( latest_ts - current_ts < timeout )
 		{
 		    // if there is no data, but the expected data has
 		    // not run out yet, wait for it.
 		    return false;
 		}
-		else
-		{
-		    // mark this stream as overdue
-		    (it->stream)->overdue = true;
-		}
 	    }
-
 	    return false;
 	}
 
@@ -295,7 +257,7 @@ namespace aggregator {
     {
 	using ::operator <<;
 	const std::pair<size_t, size_t> &status( base.getBufferStatus() );
-	stream << status.first << "\t" << status.second << "\t" << base.overdue << "\t" << base.nextTimeStamp();
+	stream << status.first << "\t" << status.second << "\t" << base.nextTimeStamp();
 	return stream;
     }
 }
