@@ -116,7 +116,7 @@ namespace aggregator {
 	base::Time current_ts;
 
     public:
-	explicit StreamAligner(base::Time timeout = base::Time(1))
+	explicit StreamAligner(base::Time timeout = base::Time::fromSeconds(1))
 	    : timeout(timeout), initialized(false) {}
 
 	~StreamAligner()
