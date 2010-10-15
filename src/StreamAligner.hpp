@@ -20,6 +20,7 @@ namespace aggregator {
 		StreamBase() {}
 		virtual base::Time pop() = 0;
 		virtual bool hasData() const = 0;
+		virtual int getPriority() const = 0;
 		virtual base::Time nextTimeStamp() const = 0;
 		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
 		virtual void copyState( const StreamBase& other ) = 0;
@@ -35,10 +36,16 @@ namespace aggregator {
 	    boost::function<void (base::Time ts, T value)> callback;
 	    base::Time period; 
 	    base::Time lastTime;
+	    int priority;
 
 	public:
-	    Stream( boost::function<void (base::Time ts, T value)> callback, size_t bufferSize = 10, base::Time period = base::Time() )
-		: bufferSize( bufferSize ), callback(callback), period(period) {}
+	    Stream( boost::function<void (base::Time ts, T value)> callback, size_t bufferSize, base::Time period, int priority )
+		: bufferSize( bufferSize ), callback(callback), period(period), priority(priority) {}
+
+	    virtual int getPriority() const
+	    {
+		return priority;
+	    }
 
 	    virtual std::pair<size_t, size_t> getBufferStatus() const
 	    {
@@ -101,7 +108,10 @@ namespace aggregator {
 
 	static bool compareStreams( const StreamBase* b1, const StreamBase* b2 )
 	{
-	    return b1->nextTimeStamp() < b2->nextTimeStamp();
+	    const base::Time &ts1( b1->nextTimeStamp() );
+	    const base::Time &ts2( b2->nextTimeStamp() );
+
+	    return ts1 < ts2 || (ts1 == ts2 && b1->getPriority() < b2->getPriority());
 	}
 
 	typedef std::vector<StreamBase*> stream_vector;
@@ -115,9 +125,11 @@ namespace aggregator {
 	/** time of the last sample that went out */
 	base::Time current_ts;
 
+	double buffer_size_factor;
+
     public:
 	explicit StreamAligner(base::Time timeout = base::Time::fromSeconds(1))
-	    : timeout(timeout), initialized(false) {}
+	    : timeout(timeout), initialized(false), buffer_size_factor(2.0) {}
 
 	~StreamAligner()
 	{
@@ -154,16 +166,41 @@ namespace aggregator {
 	/** Will register a stream with the aggregator.
 	 *
 	 * @param callback - will be called for data gone through the synchronization process
-	 * @param bufferSize - The size of the internal FIFO buffer. This should be at least 
-	 *  	the amount of samples that can occur in a timeout period.
 	 * @param period - time between sensor readings. This will be used to estimate when the 
-	 *	next reading should arrive, so out of order arrivals are possible. Set to 0 if not a periodic stream
+	 *	next reading should arrive, so out of order arrivals are
+	 *	possible. Set to 0 if not a periodic stream. When set to a
+	 *	negative value, the calculation of the buffer is performed for
+	 *	that period, however no lookahead is set.
+	 * @param bufferSize - The size of the internal FIFO buffer. This should be at least 
+	 *  	the amount of samples that can occur in a timeout period. If no
+	 *  	value is provided, the bufferSize is calculated from the period
+	 *  	and timeout values provided, with an additional safety factor.
+	 * @param priority - if streams have data with equal timestamps, the
+	 *      one with the lower priority value will be pushed first.
 	 *
 	 * @result - stream index, which is used to identify the stream (e.g. for push).
 	 */
-	template <class T> int registerStream( boost::function<void (base::Time ts, T value)> callback, int bufferSize = 10, base::Time period = base::Time() ) 
+	template <class T> int registerStream( boost::function<void (base::Time ts, T value)> callback, int bufferSize, base::Time period, int priority  = -1 ) 
 	{
-	    streams.push_back( new Stream<T>(callback, bufferSize, period) );
+	    if( bufferSize < 1 )
+	    {
+		if( period == base::Time() )
+		{
+		    throw std::runtime_error("No buffer size provided for stream with unknown period.");
+		}
+		else if( period < base::Time() )
+		{
+		    // for a negative period, just calculate the buffer size, but don't set any lookahead.
+		    bufferSize = buffer_size_factor * ceil( timeout.toSeconds() / -period.toSeconds() );
+		    period = base::Time();
+		}
+		else
+		{
+		    bufferSize = buffer_size_factor * ceil( timeout.toSeconds() / period.toSeconds() );
+		}
+	    }
+
+	    streams.push_back( new Stream<T>(callback, bufferSize, period, priority) );
 	    return streams.size() - 1;
 	}
 
