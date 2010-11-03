@@ -18,6 +18,7 @@ namespace aggregator {
 	{
 	    public:
 		StreamBase() {}
+		virtual ~StreamBase() {}
 		virtual base::Time pop() = 0;
 		virtual bool hasData() const = 0;
 		virtual int getPriority() const = 0;
@@ -41,6 +42,8 @@ namespace aggregator {
 	public:
 	    Stream( boost::function<void (base::Time ts, T value)> callback, size_t bufferSize, base::Time period, int priority )
 		: bufferSize( bufferSize ), callback(callback), period(period), priority(priority) {}
+
+	    virtual ~Stream() {};
 
 	    virtual int getPriority() const
 	    {
