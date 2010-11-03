@@ -205,7 +205,7 @@ namespace aggregator {
 	 */
 	template <class T> int registerStream( boost::function<void (base::Time ts, T value)> callback, int bufferSize, base::Time period, int priority  = -1 ) 
 	{
-	    if( bufferSize < 1 )
+	    if( bufferSize < 0 )
 	    {
 		if( period == base::Time() )
 		{
