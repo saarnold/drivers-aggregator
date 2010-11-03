@@ -32,7 +32,7 @@ namespace aggregator {
 	template <class T> class Stream : public StreamBase
 	{
 	    typedef std::pair<base::Time,T> item;
-	    std::queue<item> buffer;
+	    std::deque<item> buffer;
 	    size_t bufferSize;
 	    boost::function<void (base::Time ts, T value)> callback;
 	    base::Time period; 
@@ -75,10 +75,10 @@ namespace aggregator {
 		// sorry old data, you gotta go!
 		while( bufferSize > 0 && buffer.size() >= bufferSize )
 		{
-		    buffer.pop();
+		    buffer.pop_front();
 		}
 
-		buffer.push( std::make_pair(ts, data) ); 
+		buffer.push_back( std::make_pair(ts, data) ); 
 	    }
 
 	    /** take the last item of the stream queue and 
@@ -90,7 +90,7 @@ namespace aggregator {
 		{
 		    base::Time ts = buffer.front().first;
 		    callback( ts, buffer.front().second );
-		    buffer.pop();
+		    buffer.pop_front();
 		    return ts;
 		}
 
