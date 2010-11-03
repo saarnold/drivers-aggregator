@@ -45,6 +45,24 @@ namespace aggregator {
 
 	    virtual ~Stream() {};
 
+	    bool getNextSample(item &sample) const
+	    {
+		if(buffer.size() < 2)
+		    return false;
+		
+		sample = *(buffer.begin()++);
+		return true;
+	    }
+
+	    bool getCurrentSample(item &sample) const
+	    {
+		if(buffer.empty())
+		    return false;
+		
+		sample = buffer.front();
+		return true;
+	    }
+
 	    virtual int getPriority() const
 	    {
 		return priority;
@@ -239,6 +257,28 @@ namespace aggregator {
 	    assert( stream );
 
 	    stream->push( ts, data );
+	}
+
+	template <class T> bool getLastSample( int idx, std::pair<base::Time,T> &sample) const
+	{
+	    if( idx < 0 )
+		throw std::runtime_error("invalid stream index.");
+
+	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
+	    assert( stream );
+
+	    return stream->getCurrentSample(sample);
+	}
+
+	template <class T> bool getNextSample( int idx, std::pair<base::Time,T> &sample) const
+	{
+	    if( idx < 0 )
+		throw std::runtime_error("invalid stream index.");
+
+	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
+	    assert( stream );
+
+	    return stream->getNextSample(sample);
 	}
 
 	/** This will go through the available streams and look for the
