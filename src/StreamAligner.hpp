@@ -89,7 +89,8 @@ namespace aggregator {
 		if( hasData() )
 		{
 		    base::Time ts = buffer.front().first;
-		    callback( ts, buffer.front().second );
+		    if(callback)
+			callback( ts, buffer.front().second );
 		    buffer.pop_front();
 		    return ts;
 		}
