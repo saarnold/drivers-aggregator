@@ -93,6 +93,7 @@ namespace aggregator {
 		// sorry old data, you gotta go!
 		while( bufferSize > 0 && buffer.size() >= bufferSize )
 		{
+		    std::cout << "Warning, discarding samples from stream " << std::endl;
 		    buffer.pop_front();
 		}
 
