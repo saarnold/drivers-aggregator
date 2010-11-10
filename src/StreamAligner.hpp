@@ -34,13 +34,13 @@ namespace aggregator {
 	    typedef std::pair<base::Time,T> item;
 	    std::deque<item> buffer;
 	    size_t bufferSize;
-	    boost::function<void (base::Time ts, T value)> callback;
+	    boost::function<void (const base::Time &ts, const T &value)> callback;
 	    base::Time period; 
 	    base::Time lastTime;
 	    int priority;
 
 	public:
-	    Stream( boost::function<void (base::Time ts, T value)> callback, size_t bufferSize, base::Time period, int priority )
+	    Stream( boost::function<void (const base::Time &ts,const T &value)> callback, size_t bufferSize, base::Time period, int priority )
 		: bufferSize( bufferSize ), callback(callback), period(period), priority(priority) {}
 
 	    virtual ~Stream() {};
@@ -73,7 +73,7 @@ namespace aggregator {
 		bufferSize = stream.bufferSize;
 	    }
 
-	    void push( base::Time ts, T data ) 
+	    void push(const base::Time &ts, const T &data ) 
 	    { 
 		if( ts < lastTime )
 		    return;
@@ -170,7 +170,7 @@ namespace aggregator {
 	 * This number effectively puts an upper limit to the lag that can be created due to 
 	 * delay or missing values on the channels.
 	 */
-	void setTimeout( base::Time t )
+	void setTimeout(const base::Time &t )
 	{
 	    timeout = t;
 	}
@@ -192,7 +192,7 @@ namespace aggregator {
 	 *
 	 * @result - stream index, which is used to identify the stream (e.g. for push).
 	 */
-	template <class T> int registerStream( boost::function<void (base::Time ts, T value)> callback, int bufferSize, base::Time period, int priority  = -1 ) 
+	template <class T> int registerStream( boost::function<void (base::Time ts,const T &value)> callback, int bufferSize, base::Time period, int priority  = -1 ) 
 	{
 	    if( bufferSize < 0 )
 	    {
@@ -215,12 +215,12 @@ namespace aggregator {
 	    streams.push_back( new Stream<T>(callback, bufferSize, period, priority) );
 	    return streams.size() - 1;
 	}
-
+	
 	/** Push new data into the stream
 	 * @param ts - the timestamp of the data item
 	 * @param data - the data added to the stream
 	 */
-	template <class T> void push( int idx, base::Time ts, const T& data )
+	template <class T> void push( int idx, const base::Time &ts, const T& data )
 	{
 	    if( idx < 0 )
 		throw std::runtime_error("invalid stream index.");
