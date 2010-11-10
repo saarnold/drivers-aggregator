@@ -131,7 +131,6 @@ namespace aggregator {
 	typedef std::vector<StreamBase*> stream_vector;
 	stream_vector streams;
 	base::Time timeout;
-	bool initialized;
 
 	/** time of the last sample that came in */
 	base::Time latest_ts;
@@ -143,7 +142,7 @@ namespace aggregator {
 
     public:
 	explicit StreamAligner(base::Time timeout = base::Time::fromSeconds(1))
-	    : timeout(timeout), initialized(false), buffer_size_factor(2.0) {}
+	    : timeout(timeout), buffer_size_factor(2.0) {}
 
 	~StreamAligner()
 	{
@@ -157,7 +156,6 @@ namespace aggregator {
 	 */
 	void copyState(const StreamAligner& other)
 	{
-	    initialized = other.initialized;
 	    latest_ts = other.latest_ts;
 	    current_ts = other.current_ts;
 
@@ -226,15 +224,6 @@ namespace aggregator {
 	{
 	    if( idx < 0 )
 		throw std::runtime_error("invalid stream index.");
-
-	    // if not initialized, set current and latest time to the first
-	    // ts that comes in
-	    if( !initialized )
-	    {
-		current_ts = ts;
-		latest_ts = ts;
-		initialized = true;
-	    }
 
 	    // if ts is older than last ts that went out, its not added
 	    // to the queue
