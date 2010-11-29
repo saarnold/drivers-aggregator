@@ -19,3 +19,6 @@ configure_file(aggregator.pc.in aggregator.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/aggregator.pc
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
 
+CONFIGURE_FILE(Doxyfile.in Doxyfile @ONLY)
+ADD_CUSTOM_TARGET(doc doxygen Doxyfile)
+
