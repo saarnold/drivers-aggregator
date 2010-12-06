@@ -307,6 +307,9 @@ namespace aggregator {
 	 */
 	base::Time getLatestTime() const { return latest_ts; }
 
+	/** return the number of streams 
+	*/
+	int getStreamSize() const { return streams.size();  } 
 	/** return the buffer status as a std::pair. first element in pair is
 	 * the current buffer fill and the second element is the buffer size 
 	 */
