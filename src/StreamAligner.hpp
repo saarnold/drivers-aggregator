@@ -305,7 +305,7 @@ namespace aggregator {
 	friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner &re);
     };
 
-    std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner &re)
+    inline std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner &re)
     {
 	using ::operator <<;
 	stream << "current time: " << re.getCurrentTime() << " latest time:" << re.getLatestTime() << " latency: " << re.getLatency() << std::endl;
@@ -317,7 +317,7 @@ namespace aggregator {
 	return stream;
     }
 
-    std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base)
+    inline std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base)
     {
 	using ::operator <<;
 	const std::pair<size_t, size_t> &status( base.getBufferStatus() );
