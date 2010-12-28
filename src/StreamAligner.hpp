@@ -84,7 +84,7 @@ namespace aggregator {
 		// sorry old data, you gotta go!
 		while( bufferSize > 0 && buffer.size() >= bufferSize )
 		{
-		    std::cout << "Warning, discarding samples from stream " << std::endl;
+		    std::cerr << "WARNING: discarding samples from stream." << std::endl;
 		    buffer.pop_front();
 		}
 
@@ -211,6 +211,9 @@ namespace aggregator {
 		    bufferSize = buffer_size_factor * ceil( timeout.toSeconds() / period.toSeconds() );
 		}
 	    }
+
+	    if( bufferSize == 0 )
+		std::cerr << "WARNING: a buffer size of 0 is almost always a bad idea." << std::endl;
 
 	    streams.push_back( new Stream<T>(callback, bufferSize, period, priority) );
 	    return streams.size() - 1;
