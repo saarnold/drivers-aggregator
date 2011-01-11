@@ -1,4 +1,4 @@
-project(pose_estimator)
+project(aggregator)
 set(PROJECT_VERSION 1.0)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
@@ -18,6 +18,9 @@ add_subdirectory(test)
 configure_file(aggregator.pc.in aggregator.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/aggregator.pc
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
+
+install(FILES ${PROJECT_SOURCE_DIR}/orogen_plugin/aggregator_plugin.rb
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/orogen/plugins)
 
 CONFIGURE_FILE(Doxyfile.in Doxyfile @ONLY)
 ADD_CUSTOM_TARGET(doc doxygen Doxyfile)
