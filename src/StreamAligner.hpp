@@ -22,7 +22,7 @@ namespace aggregator {
 		virtual base::Time pop() = 0;
 		virtual bool hasData() const = 0;
 		virtual int getPriority() const = 0;
-		virtual base::Time nextTimeStamp() const = 0;
+		virtual base::Time latestTimeStamp() const = 0;
 		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
 		virtual void copyState( const StreamBase& other ) = 0;
 
@@ -31,16 +31,20 @@ namespace aggregator {
 
 	template <class T> class Stream : public StreamBase
 	{
+	public:
+	    typedef boost::function<void (const base::Time &ts, const T &value)> callback_t;
+
+	protected:
 	    typedef std::pair<base::Time,T> item;
 	    std::deque<item> buffer;
 	    size_t bufferSize;
-	    boost::function<void (const base::Time &ts, const T &value)> callback;
+	    callback_t callback;
 	    base::Time period; 
 	    base::Time lastTime;
 	    int priority;
 
 	public:
-	    Stream( boost::function<void (const base::Time &ts,const T &value)> callback, size_t bufferSize, base::Time period, int priority )
+	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority )
 		: bufferSize( bufferSize ), callback(callback), period(period), priority(priority) {}
 
 	    virtual ~Stream() {};
@@ -111,7 +115,7 @@ namespace aggregator {
 	    bool hasData() const
 	    { return !buffer.empty(); }
 
-	    base::Time nextTimeStamp() const
+	    base::Time latestTimeStamp() const
 	    {
 		if( hasData() )
 		    return buffer.front().first;
@@ -122,8 +126,8 @@ namespace aggregator {
 
 	static bool compareStreams( const StreamBase* b1, const StreamBase* b2 )
 	{
-	    const base::Time &ts1( b1->nextTimeStamp() );
-	    const base::Time &ts2( b2->nextTimeStamp() );
+	    const base::Time &ts1( b1->latestTimeStamp() );
+	    const base::Time &ts2( b2->latestTimeStamp() );
 
 	    return ts1 < ts2 || (ts1 == ts2 && b1->getPriority() < b2->getPriority());
 	}
@@ -144,7 +148,7 @@ namespace aggregator {
 	explicit StreamAligner(base::Time timeout = base::Time::fromSeconds(1))
 	    : timeout(timeout), buffer_size_factor(2.0) {}
 
-	~StreamAligner()
+	virtual ~StreamAligner()
 	{
 	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
 		delete *it;
@@ -192,7 +196,7 @@ namespace aggregator {
 	 *
 	 * @result - stream index, which is used to identify the stream (e.g. for push).
 	 */
-	template <class T> int registerStream( boost::function<void (base::Time ts,const T &value)> callback, int bufferSize, base::Time period, int priority  = -1 ) 
+	template <class T> int registerStream( typename Stream<T>::callback_t callback, int bufferSize, base::Time period, int priority  = -1 ) 
 	{
 	    if( bufferSize < 0 )
 	    {
@@ -341,7 +345,7 @@ namespace aggregator {
     {
 	using ::operator <<;
 	const std::pair<size_t, size_t> &status( base.getBufferStatus() );
-	stream << status.first << "\t" << status.second << "\t" << base.nextTimeStamp();
+	stream << status.first << "\t" << status.second << "\t" << base.latestTimeStamp();
 	return stream;
     }
 }

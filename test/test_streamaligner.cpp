@@ -6,10 +6,12 @@
 #include <iostream>
 #include <numeric>
 
+#include <boost/bind.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/test/execution_monitor.hpp>  
 
 #include "StreamAligner.hpp"
+#include "PullStreamAligner.hpp"
 
 using namespace aggregator;
 using namespace std;
@@ -45,7 +47,6 @@ BOOST_AUTO_TEST_CASE( order_test )
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "f" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
-
 
 BOOST_AUTO_TEST_CASE( drop_test )
 {
@@ -131,3 +132,56 @@ BOOST_AUTO_TEST_CASE( timeout_test )
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "f" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
+
+template <class T>
+struct pull_object
+{
+    pull_object() : hasNext( false ) {}
+
+    void setNext(base::Time ts, const T& next)
+    {
+	next_ts = ts;
+	next_value = next;
+	hasNext = true;
+    }
+
+    bool getNext(base::Time& ts, T& next)
+    {
+	if( hasNext )
+	{
+	    next = next_value;
+	    ts = next_ts;
+	    hasNext = false;
+	    return true;
+	}
+	return false;
+    }
+
+    bool hasNext;
+    T next_value;
+    base::Time next_ts;
+};
+
+
+BOOST_AUTO_TEST_CASE( pull_stream_test )
+{
+    PullStreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    pull_object<string> p1;
+    pull_object<string> p2;
+
+    // callback, buffer_size, period_time, (optional) priority
+    reader.registerStream<string>( boost::bind( &pull_object<string>::getNext, &p1, _1, _2 ), &test_callback, 4, base::Time::fromSeconds(2) ); 
+    reader.registerStream<string>( boost::bind( &pull_object<string>::getNext, &p2, _1, _2 ), &test_callback, 4, base::Time::fromSeconds(2), 1 );
+
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+
+    p1.setNext( base::Time::fromSeconds(2.0), string("b") ); 
+    p2.setNext( base::Time::fromSeconds(1.0), string("a") ); 
+    while( reader.pull() );
+    
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+}
+
