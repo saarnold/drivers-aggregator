@@ -9,6 +9,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <stdexcept> 
 #include <iostream>
+#include <StreamAlignerStatus.hpp>
 
 namespace aggregator {
 
@@ -143,6 +144,11 @@ namespace aggregator {
 	base::Time current_ts;
 
 	double buffer_size_factor;
+
+	/** temporary object that gets returned by getStatus, 
+	 * in order to avoid dynamic allocation on each call
+	 */  
+	mutable StreamAlignerStatus status;
 
     public:
 	explicit StreamAligner(base::Time timeout = base::Time::fromSeconds(1))
@@ -323,6 +329,29 @@ namespace aggregator {
 	std::pair<size_t, size_t> getBufferStatus(int idx) const
 	{
 	    return streams[idx]->getBufferStatus();
+	}
+
+	/** @return the current status of the StreamAligner
+	 * this is mainly used for debug purposes
+	 */
+	const StreamAlignerStatus& getStatus() const 
+	{
+	    status.current_time = getCurrentTime();
+	    status.latest_time = getLatestTime();
+
+	    const size_t num_streams = streams.size();
+	    if( status.streams.size() != num_streams )
+		status.streams.resize( streams.size() );
+	    
+	    for(size_t i=0;i<num_streams;i++)
+	    {
+		const std::pair<size_t, size_t> &state( streams[i]->getBufferStatus() );
+		status.streams[i].buffer_size = state.first;
+		status.streams[i].buffer_fill = state.second; 
+		status.streams[i].latest_time = streams[i]->latestTimeStamp(); 
+	    }
+
+	    return status;
 	}
 
 	friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
