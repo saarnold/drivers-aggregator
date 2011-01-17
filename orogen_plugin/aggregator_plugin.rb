@@ -19,8 +19,6 @@ module PortListenerPlugin
 		raise "Internal error trying to listen to nonexisting port " + port_name 
 	    end
 	    
-	    puts port_name
-		
 	    code = "
     #{port.type.cxx_name} #{port_name}Sample;
     while(_#{port_name}.read(#{port_name}Sample) == RTT::NewData )
@@ -41,7 +39,6 @@ module PortListenerPlugin
 	    #register code generator for port listeners
 	    #note, this needs to be done as early as possible
 	    add_generation_handler do
-		puts "generation port listenders"
 		generator.generate_port_listeners()
 	    end	
 	end	    
@@ -83,7 +80,7 @@ module AggregatorPlugin
 	end
     end
     
-    class AggregatorGenerator
+    class StreamAlignerGenerator
 	attr_accessor :task
 	attr_reader :agg_name
 	
@@ -93,9 +90,9 @@ module AggregatorPlugin
 	end
 
 	def do_parse_time_calls(config)
-	    task.property("aggregator_timeout",   'double', config.timeout).
+	    task.property("aggregator_max_latency",   'double', config.max_latency).
 			doc "Maximum time that should be waited for a delayed sample to arrive"
-	    puts("Adding property aggregator_timeout")
+	    puts("Adding property aggregator_max_latency")
 	    
 	    config.aligned_ports.each do |m| 
 		#add propertie for adjusting the period if not existing yet
@@ -126,7 +123,7 @@ module AggregatorPlugin
 	    task.add_base_member("aggregator", agg_name, "aggregator::StreamAligner")
 
 	    task.in_base_hook("configure", "
-    #{agg_name}.setTimeout( base::Time::fromSeconds( _aggregator_timeout.value()) );
+    #{agg_name}.setTimeout( base::Time::fromSeconds( _aggregator_max_latency.value()) );
 	    ")
 
 	    config.aligned_ports.each do |m|     
@@ -150,7 +147,7 @@ module AggregatorPlugin
     const double #{m.port_name}Period = _#{m.port_name}_period.value();
     #{index_name} = #{agg_name}.registerStream< #{port_data_type}>(
 	boost::bind( &TaskBase::#{callback_name}, this, _1, _2 ),
-	#{buffer_size_factor}* ceil( #{config.timeout}/#{m.port_name}Period),
+	#{buffer_size_factor}* ceil( #{config.max_latency}/#{m.port_name}Period),
 	base::Time::fromSeconds( #{m.port_name}Period ) );
 		")
 
@@ -166,7 +163,7 @@ module AggregatorPlugin
     end
     
     class StreamAlignerConfig
-	dsl_attribute :timeout	
+	dsl_attribute :max_latency	
 	attr_accessor :aligned_ports
 	
 	def initialize()
@@ -178,17 +175,17 @@ module AggregatorPlugin
 	end	
     end
     
-    def add_aggregator(&block)	
+    def stream_aligner(&block)	
 	register_port_listener_generator()
 
 	config = StreamAlignerConfig.new()
 	config.instance_eval(&block)
 
-	if(!config.timeout)
-	   raise "not timeout specified for aggregator" 
+	if(!config.max_latency)
+	   raise "not max_latency specified for aggregator" 
 	end
     
-	generator = AggregatorGenerator.new(self)
+	generator = StreamAlignerGenerator.new(self)
 	generator.do_parse_time_calls(config)
 	
 	#register code generator to be called after parsing is done
