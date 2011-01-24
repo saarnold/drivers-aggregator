@@ -45,7 +45,7 @@ module PortListenerPlugin
     end
     
     def add_port_listener(name, &generator_method)
-	puts "Added port listener for port #{name}"
+	Orocos::Generation.info "Added port listener for port #{name}"
 	if(!registered)
 	    raise("port listener generator was not registered prior to calling add_port_listener")	    
 	end
@@ -92,7 +92,7 @@ module AggregatorPlugin
 	def do_parse_time_calls(config)
 	    task.property("aggregator_max_latency",   'double', config.max_latency).
 			doc "Maximum time that should be waited for a delayed sample to arrive"
-	    puts("Adding property aggregator_max_latency")
+	    Orocos::Generation.info("Adding property aggregator_max_latency")
 	    
 	    config.aligned_ports.each do |m| 
 		#add propertie for adjusting the period if not existing yet
@@ -102,7 +102,7 @@ module AggregatorPlugin
 		if(!(task.find_property(property_name)))
 		    task.property(property_name,   'double', m.data_period).
 			doc "Time in s between #{m.port_name} readings"
-		    puts("Adding property #{property_name}")
+		    Orocos::Generation.info("Adding property #{property_name}")
 		end
 		
 		index_name = m.port_name + "_idx"
