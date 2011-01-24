@@ -24,6 +24,8 @@ namespace aggregator {
 		virtual bool hasData() const = 0;
 		virtual int getPriority() const = 0;
 		virtual base::Time latestTimeStamp() const = 0;
+		virtual base::Time latestDataTime() const = 0;
+		virtual base::Time earliestDataTime() const = 0;
 		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
 		virtual void copyState( const StreamBase& other ) = 0;
 
@@ -80,9 +82,12 @@ namespace aggregator {
 
 	    void push(const base::Time &ts, const T &data ) 
 	    { 
-		if( ts < lastTime )
-		    return;
-
+		if(ts < lastTime)
+		{
+		    std::cerr << "WARNING: time order on stream is not monotone." << std::endl;
+		    throw std::runtime_error("stream not ordered in time");
+		}		    
+		
 		lastTime = ts;
 
 		// if the buffer is full, make some space
@@ -122,6 +127,18 @@ namespace aggregator {
 		    return buffer.front().first;
 		else 
 		    return lastTime + period;
+	    }
+	    
+	    virtual base::Time latestDataTime() const
+	    {
+		return lastTime;
+	    }
+	    
+	    virtual base::Time earliestDataTime() const
+	    {
+		if( hasData() )
+		    return buffer.front().first;
+		return base::Time();
 	    }
 	};
 
@@ -238,15 +255,14 @@ namespace aggregator {
 	    if( idx < 0 )
 		throw std::runtime_error("invalid stream index.");
 
-	    // if ts is older than last ts that went out, its not added
-	    // to the queue
-	    if( ts < current_ts )
+	    //any sample, that is older than the last replayed sample
+	    //will never be played back and gets dropped by default
+	    if(ts < current_ts)
 		return;
 
 	    if( ts > latest_ts )
 		latest_ts = ts;
-
-
+	    
 	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
 	    assert( stream );
 
@@ -297,11 +313,41 @@ namespace aggregator {
 		    current_ts = (*it)->pop();
 		    return true;
 		}
-		else if( latest_ts - current_ts < timeout )
+		else 
 		{
-		    // if there is no data, but the expected data has
-		    // not run out yet, wait for it.
-		    return false;
+
+		    base::Time latestDataTime;
+		    base::Time firstDataTime;
+		    
+		    //initalization case
+		    if(current_ts == base::Time())
+		    {
+			//check if one stream timed out
+			for(stream_vector::iterator it2=items.begin();it2 != items.end();it2++)
+			{
+			    
+			    if((*it2)->hasData())
+			    {
+				if(latestDataTime < (*it2)->latestDataTime())
+				    latestDataTime = (*it2)->latestDataTime();
+				
+				
+				
+				if(firstDataTime != base::Time() || firstDataTime < (*it2)->earliestDataTime())
+				    firstDataTime = (*it2)->earliestDataTime();
+			    }
+			}			
+		    } else {
+			latestDataTime = latest_ts;
+			firstDataTime = current_ts;
+		    }
+
+		    if(latestDataTime - firstDataTime < timeout)
+		    {
+			// if there is no data, but the expected data has
+			// not run out yet, wait for it.
+			return false;
+		    }
 		}
 	    }
 	    return false;

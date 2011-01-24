@@ -32,12 +32,12 @@ BOOST_AUTO_TEST_CASE( order_test )
     int s1 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(2) ); 
     int s2 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(2), 1 );
 
-    reader.push( s1, base::Time::fromSeconds(0.0), string("a") ); 
-    reader.push( s1, base::Time::fromSeconds(2.0), string("c") ); 
-    reader.push( s2, base::Time::fromSeconds(1.0), string("b") ); 
-    reader.push( s2, base::Time::fromSeconds(2.0), string("d") ); 
-    reader.push( s2, base::Time::fromSeconds(3.0), string("f") ); 
-    reader.push( s1, base::Time::fromSeconds(3.0), string("e") ); 
+    reader.push( s1, base::Time::fromSeconds(1.0), string("a") ); 
+    reader.push( s1, base::Time::fromSeconds(3.0), string("c") ); 
+    reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
+    reader.push( s2, base::Time::fromSeconds(3.0), string("d") ); 
+    reader.push( s2, base::Time::fromSeconds(4.0), string("f") ); 
+    reader.push( s1, base::Time::fromSeconds(4.0), string("e") ); 
 
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
@@ -58,8 +58,15 @@ BOOST_AUTO_TEST_CASE( drop_test )
 
     reader.push( s1, base::Time::fromSeconds(10.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(11.0), string("b") ); 
+    bool gotException = false;
+    try {
     reader.push( s1, base::Time::fromSeconds(10.0), string("3") ); 
-
+    } catch (std::runtime_error &e)
+    {
+	gotException = true;
+    } 
+    BOOST_CHECK_EQUAL(gotException, true);
+    
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
@@ -75,7 +82,14 @@ BOOST_AUTO_TEST_CASE( copy_state_test )
 
     reader.push( s1, base::Time::fromSeconds(10.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(11.0), string("b") ); 
+    bool gotException = false;
+    try {
     reader.push( s1, base::Time::fromSeconds(10.0), string("3") ); 
+    } catch (std::runtime_error &e)
+    {
+	gotException = true;
+    } 
+    BOOST_CHECK_EQUAL(gotException, true);
 
     StreamAligner reader2;
     reader2.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
@@ -130,6 +144,79 @@ BOOST_AUTO_TEST_CASE( timeout_test )
 
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "e" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "f" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+}
+
+
+/**
+ * This testcase checks if data is replayed, if there is 
+ * only data on one stream available
+ * */
+BOOST_AUTO_TEST_CASE( data_on_one_stream_test )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time
+    reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(0,0) ); 
+
+    
+    reader.push( s2, base::Time::fromSeconds(1.0), string("a") ); 
+
+    //instant replay, as perios of s2 is zero
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+}
+
+/**
+ * This testcase checks, if all samples are replayed,
+ * if a newer sample is given to the aligner first.  
+ * This test case is about the inital case.
+ * */
+BOOST_AUTO_TEST_CASE( newer_data_first_init_case)
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time
+    int s1 = reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(0,0) ); 
+
+    reader.push( s1, base::Time::fromSeconds(1.1), string("b") ); 
+    
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+    
+    reader.push( s2, base::Time::fromSeconds(1.0), string("a") ); 
+    
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+}
+
+/**
+ * This test case check weather the aligner waits 
+ * the full timeout again after he replayed a sample
+ * from a stream
+ * */
+BOOST_AUTO_TEST_CASE( advanced_timout )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time
+    int s1 = reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(1,0) ); 
+    reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(0,0) ); 
+
+    reader.push( s1, base::Time::fromSeconds(1.0), string("a") ); 
+    
+    reader.push( s1, base::Time::fromSeconds(1.1), string("b") ); 
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+    
+    reader.push( s1, base::Time::fromSeconds(3.1), string("c") ); 
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "c" );
+
+    //bigger than period, bus smaller than timeout, do not replay
+    reader.push( s1, base::Time::fromSeconds(4.2), string("d") ); 
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
 
