@@ -13,4 +13,5 @@
     <license>LGPL v2 or later</license>
 
     <depend package="base/types" />
+    <tags>stable</tags>
 </package>
