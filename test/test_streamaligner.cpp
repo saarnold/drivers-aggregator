@@ -148,6 +148,18 @@ BOOST_AUTO_TEST_CASE( timeout_test )
 }
 
 
+BOOST_AUTO_TEST_CASE( get_status )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time
+    reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
+    reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(0,0) ); 
+
+    std::cout << reader.getStatus();
+}
+
 /**
  * This testcase checks if data is replayed, if there is 
  * only data on one stream available

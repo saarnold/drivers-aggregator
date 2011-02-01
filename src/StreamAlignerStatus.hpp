@@ -19,6 +19,8 @@ namespace aggregator
 	base::Time latest_time;
 	std::vector<StreamStatus> streams;
     };
+
 }
 
+std::ostream &operator<<(std::ostream &os, const aggregator::StreamAlignerStatus &status);
 #endif
