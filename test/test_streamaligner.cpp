@@ -167,6 +167,39 @@ BOOST_AUTO_TEST_CASE( data_on_same_time_zero_lookahead )
     BOOST_CHECK_EQUAL( lastSample, "b" );
 }
 
+BOOST_AUTO_TEST_CASE( data_on_same_time_zero_lookahead_advanced )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time
+    int s1 = reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 5, base::Time() ); 
+    int s3 = reader.registerStream<string>( &test_callback, 5, base::Time() ); 
+    int s4 = reader.registerStream<string>( &test_callback, 5, base::Time() ); 
+    
+    reader.push( s4, base::Time::fromSeconds(2.0), string("d") ); 
+    reader.push( s3, base::Time::fromSeconds(2.0), string("c") ); 
+    reader.push( s1, base::Time::fromSeconds(2.0), string("a") ); 
+    reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
+
+    lastSample = ""; 
+    reader.step(); 
+    BOOST_CHECK( lastSample != "" );
+
+    lastSample = ""; 
+    reader.step(); 
+    BOOST_CHECK( lastSample != "" );
+
+    lastSample = ""; 
+    reader.step(); 
+    BOOST_CHECK( lastSample != "" );
+
+    lastSample = ""; 
+    reader.step(); 
+    BOOST_CHECK( lastSample != "" );
+}
+
 
 BOOST_AUTO_TEST_CASE( get_status )
 {

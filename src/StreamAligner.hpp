@@ -147,7 +147,18 @@ namespace aggregator {
 	    const base::Time &ts1( b1->latestTimeStamp() );
 	    const base::Time &ts2( b2->latestTimeStamp() );
 
-	    return ts1 < ts2 || (ts1 == ts2 && b1->getPriority() < b2->getPriority());
+	    if(ts1 == ts2)
+	    {
+		if(b1->hasData() && !b2->hasData())
+		    return true;
+		
+		if(!b1->hasData() && b2->hasData())
+		    return false;
+		
+		return b1->getPriority() < b2->getPriority();
+	    }
+	    
+	    return ts1 < ts2;
 	}
 
 	typedef std::vector<StreamBase*> stream_vector;
