@@ -4,9 +4,20 @@
 
 using namespace aggregator;
 
-TimestampEstimator::TimestampEstimator(base::Time window, int lost_threshold)
+TimestampEstimator::TimestampEstimator(base::Time window,
+				       base::Time initial_period,
+				       int lost_threshold)
     : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
+    , m_initial_period(initial_period.toSeconds())
+{
+}
+
+TimestampEstimator::TimestampEstimator(base::Time window,
+				       int lost_threshold)
+    : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
+    , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
+    , m_initial_period(-1)
 {
 }
 
@@ -27,12 +38,20 @@ base::Time TimestampEstimator::update(base::Time time)
         m_samples.pop_front();
 
     // Add the new sample, and return if we don't have at least two samples
+    // (either by having been added or by adding them now)
     m_samples.push_back(current);
     if (m_samples.size() < 2)
     {
         m_last = current;
         m_min_offset_reset = current;
-        return time;
+
+	if (m_initial_period > 0) {
+	    for(int n = 1; m_initial_period * n <= m_window; n++) {
+		m_samples.push_front(current - m_initial_period * n);
+	    }
+	} else {
+	    return time;
+	}
     }
 
     // Compute the period

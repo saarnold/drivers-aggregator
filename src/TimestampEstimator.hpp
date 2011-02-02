@@ -41,6 +41,8 @@ namespace aggregator
         double m_min_offset;
         double m_min_offset_reset;
 
+	double m_initial_period;
+
     public:
         /** Creates a timestamp estimator
          *
@@ -48,13 +50,21 @@ namespace aggregator
          *        estimation. It should be an order of magnitude smaller
          *        than the period drift in the estimated stream
          *
+	 * @arg initial_period initial estimate for the period, used to fill
+	 *        the initial window.
+	 *
          * @arg lost_threshold if that many calls to update() are out of bounds
          *        (i.e. the distance between the two timestamps are greater than
          *        the period), then we consider that we lost samples and update
          *        the timestamp accordingly. Set to 0 if you are sure that the
          *        acquisition latency is lower than the device period.
          */
-        TimestampEstimator(base::Time window, int lost_threshold = 2);
+	TimestampEstimator(base::Time window,
+			   base::Time initial_period
+			   = base::Time::fromSeconds(-1),
+			   int lost_threshold = 2);
+	TimestampEstimator(base::Time window,
+			   int lost_threshold = 2);
 
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);
