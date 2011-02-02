@@ -147,6 +147,26 @@ BOOST_AUTO_TEST_CASE( timeout_test )
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
 
+BOOST_AUTO_TEST_CASE( data_on_same_time_zero_lookahead )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time
+    int s1 = reader.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 5, base::Time() ); 
+    
+    reader.push( s1, base::Time::fromSeconds(2.0), string("a") ); 
+    reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
+
+    lastSample = ""; 
+    reader.step(); 
+    BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; 
+    reader.step();
+    BOOST_CHECK_EQUAL( lastSample, "b" );
+}
+
 
 BOOST_AUTO_TEST_CASE( get_status )
 {

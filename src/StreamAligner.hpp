@@ -333,7 +333,7 @@ namespace aggregator {
 				
 				
 				
-				if(firstDataTime != base::Time() || firstDataTime < (*it2)->earliestDataTime())
+				if(firstDataTime == base::Time() || firstDataTime > (*it2)->earliestDataTime())
 				    firstDataTime = (*it2)->earliestDataTime();
 			    }
 			}			
