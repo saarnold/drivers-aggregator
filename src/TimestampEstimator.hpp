@@ -64,7 +64,7 @@ namespace aggregator
 			   = base::Time::fromSeconds(-1),
 			   int lost_threshold = 2);
 	TimestampEstimator(base::Time window,
-			   int lost_threshold = 2);
+			   int lost_threshold);
 
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);
