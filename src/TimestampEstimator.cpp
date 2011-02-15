@@ -32,10 +32,35 @@ base::Time TimestampEstimator::update(base::Time time)
 {
     double current = time.toSeconds();
 
-    // Remove the samples in m_samples that are outside our estimation window
-    double min_time = current - m_window;
-    while (!m_samples.empty() && m_samples.front() < min_time)
-        m_samples.pop_front();
+    if (m_samples.size() >= 2)
+    {
+	// Compute the period up to now for later reuse
+	double period = getPeriodInternal();
+
+	//scan forward until we hit the window size
+	std::list<double>::iterator end;
+	end = m_samples.begin();
+	double min_time = current - m_window;
+	while(end != m_samples.end() && *end < min_time)
+	    end++;
+
+	//scan backward until we find a gap that is at least period sized.
+	//that should be the last sample from a burst, giving better
+	//period estimation
+	while(end != m_samples.begin())
+	{
+	    std::list<double>::iterator t = end;
+	    t++;
+	    if (*t-*end >= period)
+		break;
+	    end--;
+	}
+
+	m_samples.erase(m_samples.begin(), end);
+    }
+    //std::cerr << "samples left: " << m_samples.size()
+    //          << " time: " << (m_samples.back()-m_samples.front())
+    //          << "\n";
 
     // Add the new sample, and return if we don't have at least two samples
     // (either by having been added or by adding them now)
@@ -54,7 +79,7 @@ base::Time TimestampEstimator::update(base::Time time)
 	}
     }
 
-    // Compute the period
+    // Recompute the period
     double period = getPeriodInternal();
 
     // Update the base time if we did not do it for the whole time window
