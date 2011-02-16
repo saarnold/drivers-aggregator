@@ -29,14 +29,13 @@ base::Time TimestampEstimator::getPeriod() const
 double TimestampEstimator::getPeriodInternal() const
 {
     int count = m_samples.size();
-    std::list<double>::const_iterator b,f;
-    b = m_samples.end();
-    b--;
-    f = m_samples.begin();
-    for(;*b <= 0 && b != m_samples.end(); b--, count--) {}
-    for(;*f <= 0 && f != m_samples.end(); f++, count--) {}
-    return (*b - *f) / (count - 1);
+    std::list<double>::const_reverse_iterator b;
+    //ignore lost samples(value <= 0) at the end of m_samples
+    for(b = m_samples.rbegin();	*b <= 0 && b != m_samples.rend(); b++, count--)
+    {}
+    return (*b - m_samples.front()) / (count - 1);
 }
+
 int TimestampEstimator::getLostSampleCount() const
 { return m_lost_total; }
 
@@ -67,6 +66,11 @@ base::Time TimestampEstimator::update(base::Time time)
 		break;
 	    end--;
 	}
+
+	//scan forward again as long as we find lost samples
+	for(;end != m_samples.end() && *end <= 0; end++) {}
+	if (end != m_samples.end())
+	    end--;//only want to drop lost samples, not the one after them
 
 	std::list<double>::iterator it;
 	for(it = m_samples.begin(); it != m_samples.end(); it++) {
