@@ -12,6 +12,8 @@ TimestampEstimator::TimestampEstimator(base::Time window,
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
     , m_initial_period(initial_period.toSeconds())
     , m_missing_samples(0)
+    , m_last_index(0)
+    , m_have_last_index(false)
 {
 }
 
@@ -21,6 +23,8 @@ TimestampEstimator::TimestampEstimator(base::Time window,
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
     , m_initial_period(-1)
     , m_missing_samples(0)
+    , m_last_index(0)
+    , m_have_last_index(false)
 {
 }
 
@@ -159,10 +163,27 @@ base::Time TimestampEstimator::update(base::Time time)
     return base::Time::fromSeconds(m_last);
 }
 
-
 void TimestampEstimator::updateLoss()
 {
     m_samples.push_back(-1);
     m_missing_samples++;
 }
 
+base::Time TimestampEstimator::update(base::Time time, int index)
+{
+    int lost = 0;
+    if (!m_have_last_index)
+    {
+	m_have_last_index = true;
+	m_last_index = index;
+    }
+    else
+	lost = index - m_last_index - 1;
+
+    while(lost > 0)
+    {
+	lost--;
+	updateLoss();
+    }
+    return update(time);
+}
