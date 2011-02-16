@@ -1,4 +1,5 @@
 #include "TimestampEstimator.hpp"
+#include <limits.h> //for INT_MAX
 #include <iostream>
 #include <stdexcept>
 
@@ -118,7 +119,7 @@ base::Time TimestampEstimator::update(base::Time time)
 
     // Check for lost samples
     int sample_distance = round((current - m_last) / period);
-    if (sample_distance > 1)
+    if (sample_distance > 1 && m_lost_threshold != INT_MAX)
         m_lost.push_back(sample_distance - 1);
     else
         m_lost.clear();
