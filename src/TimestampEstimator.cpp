@@ -56,8 +56,9 @@ base::Time TimestampEstimator::update(base::Time time)
 	std::list<double>::iterator end;
 	end = m_samples.begin();
 	double min_time = current - m_window;
-	while(end != m_samples.end() && *end < min_time)
+	while(end != m_samples.end() && *end < min_time) {
 	    end++;
+	}
 
 	//scan backward until we find a gap that is at least period sized.
 	//that should be the last sample from a burst, giving better
@@ -85,6 +86,7 @@ base::Time TimestampEstimator::update(base::Time time)
 	m_samples.erase(m_samples.begin(), end);
     }
     //std::cerr << "samples left: " << m_samples.size()
+    //          << " of these, missing: " << m_missing_samples
     //          << " time: " << (m_samples.back()-m_samples.front())
     //          << "\n";
 
