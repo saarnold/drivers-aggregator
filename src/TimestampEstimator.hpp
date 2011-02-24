@@ -49,6 +49,11 @@ namespace aggregator
 	/** number of missing samples recorded in m_samples */
 	unsigned int m_missing_samples;
 
+	/** the value of the last index given to us using update */
+	unsigned int m_last_index;
+
+	/** m_last_index is initialized */
+	bool m_have_last_index;
     public:
         /** Creates a timestamp estimator
          *
@@ -65,7 +70,8 @@ namespace aggregator
          *        the timestamp accordingly. Set to 0 if you are sure that the
          *        acquisition latency is lower than the device period.
 	 *        Set to INT_MAX if you are sure to either not lose any samples
-	 *        or know about all lost samples and use updateLoss()
+	 *        or know about all lost samples and use updateLoss()/
+	 *        update(base::Time,int)
          */
 	TimestampEstimator(base::Time window,
 			   base::Time initial_period
@@ -76,6 +82,11 @@ namespace aggregator
 
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);
+
+        /** Updates the estimate and return the actual timestamp for +ts+,
+	 *  calculating lost samples from the index
+	 */
+	base::Time update(base::Time ts, int index);
 
         /** Updates the estimate for a known lost sample */
         void updateLoss();
