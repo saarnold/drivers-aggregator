@@ -18,22 +18,20 @@ namespace aggregator
         /** The requested estimation window */
         double m_window;
 
-        /** The currently stored timestamps. values < 0 are placeholders for
-	 *  missing samples
-	 */
+        /** The currently stored timestamps */
         std::list<double> m_samples;
 
         /** The last estimated timestamp */
         double m_last;
 
-        /** if m_lost.size() is greater than m_lost_threshold, we consider
-	 * that we lost some samples
+        /** if m_lost is greater than m_lost_threshold, we consider that we lost
+         * some samples
          */
         int m_lost_threshold;
 
-        /** The number of successive samples put into update() where we could
-	 * have lost another sample */
-	std::vector<int> m_lost;
+        /** The number of successive calls to update() where we could have lost
+         * a sample */
+        std::vector<int> m_lost;
 
         /** The total estimated count of lost samples so far */
         int m_lost_total;
@@ -43,17 +41,8 @@ namespace aggregator
         double m_min_offset;
         double m_min_offset_reset;
 
-	/** Initial period used when m_samples is empty */
 	double m_initial_period;
 
-	/** number of missing samples recorded in m_samples */
-	unsigned int m_missing_samples;
-
-	/** the value of the last index given to us using update */
-	unsigned int m_last_index;
-
-	/** m_last_index is initialized */
-	bool m_have_last_index;
     public:
         /** Creates a timestamp estimator
          *
@@ -69,9 +58,6 @@ namespace aggregator
          *        the period), then we consider that we lost samples and update
          *        the timestamp accordingly. Set to 0 if you are sure that the
          *        acquisition latency is lower than the device period.
-	 *        Set to INT_MAX if you are sure to either not lose any samples
-	 *        or know about all lost samples and use updateLoss()/
-	 *        update(base::Time,int)
          */
 	TimestampEstimator(base::Time window,
 			   base::Time initial_period
@@ -82,14 +68,6 @@ namespace aggregator
 
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);
-
-        /** Updates the estimate and return the actual timestamp for +ts+,
-	 *  calculating lost samples from the index
-	 */
-	base::Time update(base::Time ts, int index);
-
-        /** Updates the estimate for a known lost sample */
-        void updateLoss();
 
         /** The currently estimated period
          */
