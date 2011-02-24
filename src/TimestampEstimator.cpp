@@ -1,4 +1,5 @@
 #include "TimestampEstimator.hpp"
+#include <limits.h> //for INT_MAX
 #include <iostream>
 #include <stdexcept>
 
@@ -10,6 +11,7 @@ TimestampEstimator::TimestampEstimator(base::Time window,
     : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
     , m_initial_period(initial_period.toSeconds())
+    , m_missing_samples(0)
 {
 }
 
@@ -18,13 +20,22 @@ TimestampEstimator::TimestampEstimator(base::Time window,
     : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
     , m_initial_period(-1)
+    , m_missing_samples(0)
 {
 }
 
 base::Time TimestampEstimator::getPeriod() const
 { return base::Time::fromSeconds(getPeriodInternal()); }
 double TimestampEstimator::getPeriodInternal() const
-{ return (m_samples.back() - m_samples.front()) / (m_samples.size() - 1); }
+{
+    int count = m_samples.size();
+    std::list<double>::const_reverse_iterator b;
+    //ignore lost samples(value <= 0) at the end of m_samples
+    for(b = m_samples.rbegin();	*b <= 0 && b != m_samples.rend(); b++, count--)
+    {}
+    return (*b - m_samples.front()) / (count - 1);
+}
+
 int TimestampEstimator::getLostSampleCount() const
 { return m_lost_total; }
 
@@ -51,21 +62,38 @@ base::Time TimestampEstimator::update(base::Time time)
 	{
 	    std::list<double>::iterator t = end;
 	    t++;
-	    if (*t-*end >= period)
+	    if (*t-*end >= period && *end > 0 && *t > 0)
 		break;
 	    end--;
+	}
+
+	//scan forward again as long as we find lost samples
+	for(;end != m_samples.end() && *end <= 0; end++) {}
+	if (end != m_samples.end() && end != m_samples.begin())
+	    end--;//only want to drop lost samples, not the one after them
+
+	std::list<double>::iterator it;
+	for(it = m_samples.begin(); it != m_samples.end(); it++) {
+	    if (*it <= 0)
+		m_missing_samples--;
 	}
 
 	m_samples.erase(m_samples.begin(), end);
     }
     //std::cerr << "samples left: " << m_samples.size()
+    //          << " of these, missing: " << m_missing_samples
     //          << " time: " << (m_samples.back()-m_samples.front())
     //          << "\n";
 
+    if (m_samples.size() == m_missing_samples)
+    {
+	m_samples.clear();
+	m_missing_samples = 0;
+    }
+
     // Add the new sample, and return if we don't have at least two samples
     // (either by having been added or by adding them now)
-    m_samples.push_back(current);
-    if (m_samples.size() < 2)
+    if (m_samples.empty())
     {
         m_last = current;
         m_min_offset_reset = current;
@@ -74,10 +102,13 @@ base::Time TimestampEstimator::update(base::Time time)
 	    for(int n = 1; m_initial_period * n <= m_window; n++) {
 		m_samples.push_front(current - m_initial_period * n);
 	    }
-	} else {
-	    return time;
 	}
     }
+
+    m_samples.push_back(current);
+
+    if (m_samples.size() - m_missing_samples < 2)
+	return time;
 
     // Recompute the period
     double period = getPeriodInternal();
@@ -93,7 +124,7 @@ base::Time TimestampEstimator::update(base::Time time)
 
     // Check for lost samples
     int sample_distance = round((current - m_last) / period);
-    if (sample_distance > 1)
+    if (sample_distance > 1 && m_lost_threshold != INT_MAX)
         m_lost.push_back(sample_distance - 1);
     else
         m_lost.clear();
@@ -129,4 +160,10 @@ base::Time TimestampEstimator::update(base::Time time)
     return base::Time::fromSeconds(m_last);
 }
 
+
+void TimestampEstimator::updateLoss()
+{
+    m_samples.push_back(-1);
+    m_missing_samples++;
+}
 
