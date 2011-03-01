@@ -24,7 +24,7 @@ namespace aggregator
         std::list<double> m_samples;
 
         /** The last estimated timestamp */
-        double m_last;
+        long double m_last;
 
         /** if m_lost.size() is greater than m_lost_threshold, we consider
 	 * that we lost some samples

@@ -158,10 +158,10 @@ base::Time TimestampEstimator::update(base::Time time)
         m_last = m_last + period;
         if (current - m_last < 0)
             throw std::logic_error("base time is after current sample");
-        m_min_offset = std::min(m_min_offset, current - m_last);
+        m_min_offset = std::min(m_min_offset, current - (double)m_last);
     }
 
-    return base::Time::fromSeconds(m_last);
+    return base::Time::fromSeconds((double)m_last);
 }
 
 void TimestampEstimator::updateLoss()
