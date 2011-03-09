@@ -73,11 +73,9 @@ base::Time TimestampEstimator::update(base::Time time)
 
 	//scan forward again as long as we find lost samples
 	for(;end != m_samples.end() && *end <= 0; end++) {}
-	if (end != m_samples.end() && end != m_samples.begin())
-	    end--;//only want to drop lost samples, not the one after them
 
 	std::list<double>::iterator it;
-	for(it = m_samples.begin(); it != m_samples.end(); it++) {
+	for(it = m_samples.begin(); it != end; it++) {
 	    if (*it <= 0)
 		m_missing_samples--;
 	}
