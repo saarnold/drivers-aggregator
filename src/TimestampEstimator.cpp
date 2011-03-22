@@ -64,13 +64,20 @@ base::Time TimestampEstimator::update(base::Time time)
 	//scan backward until we find a gap that is at least period sized.
 	//that should be the last sample from a burst, giving better
 	//period estimation
+	std::list<double>::iterator last_good = end;
+	int smp_count = 0;
 	while(end != m_samples.begin())
 	{
-	    std::list<double>::iterator t = end;
-	    t++;
-	    if (*t-*end >= period && *end > 0 && *t > 0)
-		break;
+	    if (*end > 0)
+	    {
+		if (smp_count > 0 && (*last_good-*end) / smp_count >= period)
+		    break;
+
+		last_good = end;
+		smp_count = 0;
+	    }
 	    end--;
+	    smp_count++;
 	}
 
 	//if we didn't find anything and the buffer is too large already,
