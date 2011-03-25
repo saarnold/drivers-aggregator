@@ -5,29 +5,47 @@ module PortListenerPlugin
     class PortListenerGenerator
 	attr_accessor :task
 	attr_accessor :port_listeners
+	attr_accessor :in_loop_code
 
 	def initialize(task)
 	    @port_listeners = Hash.new()
+	    @in_loop_code = Array.new()
 	    @task = task
 	end
 	
 	def generate_port_listeners()
-	    port_listeners.each do |port_name, gens|
-	    
-	    port = task.find_port(port_name)
-	    if(!port)
-		raise "Internal error trying to listen to nonexisting port " + port_name 
-	    end
 	    
 	    code = "
-    #{port.type.cxx_name} #{port_name}Sample;
-    while(_#{port_name}.read(#{port_name}Sample) == RTT::NewData )
-    {"
-	gens.each{|gen| code += gen.call("#{port_name}Sample")}
-	code += "
-    }"                   
-	    task.in_base_hook("update", code)
+    bool keepGoing = true;
+    
+    while(keepGoing)
+    {
+	keepGoing = false;
+	"        
+	    port_listeners.each do |port_name, gens|
+	    
+		port = task.find_port(port_name)
+		if(!port)
+		    raise "Internal error trying to listen to nonexisting port " + port_name 
+		end
+		
+		code += "
+	#{port.type.cxx_name} #{port_name}Sample;
+	if(_#{port_name}.read(#{port_name}Sample, false) == RTT::NewData )
+	{"
+	    gens.each{|gen| code += gen.call("#{port_name}Sample")}
+	    code += "
+	    keepGoing = true;
+	}"                   
 	    end
+	    
+	    in_loop_code.each do |block|
+		code += block
+	    end
+	    
+	    code +="
+    }"
+	    task.in_base_hook("update", code)
 	end	
     end
     
@@ -55,7 +73,11 @@ module PortListenerPlugin
 	end
 	
 	generator.port_listeners[name] << generator_method
-    end  
+    end
+    
+    def add_code_after_port_read(code)
+	generator.in_loop_code << code
+    end
 end
 
 module AggregatorPlugin
@@ -112,8 +134,13 @@ module AggregatorPlugin
 		    "
 	#{agg_name}.push(#{index_name}, #{sample_name}.time, #{sample_name});"
 		end
-
 	    end
+	    
+	    task.add_code_after_port_read("
+	while(aggregator.step()) 
+	{
+	    ;
+	}")
 	end
 	
 	
@@ -152,13 +179,6 @@ module AggregatorPlugin
 		")
 
 	    end
-	    
-	    task.in_base_hook("update", "
-    while(aggregator.step()) 
-    {
-	;
-    }")
-
 	end
     end
     
