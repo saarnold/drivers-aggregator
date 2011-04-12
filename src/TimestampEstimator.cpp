@@ -43,7 +43,7 @@ double TimestampEstimator::getPeriodInternal() const
 int TimestampEstimator::getLostSampleCount() const
 { return m_lost_total; }
 
-base::Time TimestampEstimator::update(base::Time time)
+void TimestampEstimator::shortenSampleList(base::Time time)
 {
     double current = time.toSeconds();
 
@@ -106,6 +106,13 @@ base::Time TimestampEstimator::update(base::Time time)
 	m_samples.clear();
 	m_missing_samples = 0;
     }
+}
+
+base::Time TimestampEstimator::update(base::Time time)
+{
+    shortenSampleList(time);
+
+    double current = time.toSeconds();
 
     // Add the new sample, and return if we don't have at least two samples
     // (either by having been added or by adding them now)

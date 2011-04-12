@@ -95,6 +95,12 @@ namespace aggregator
          */
         base::Time getPeriod() const;
 
+	/** Shortens the sample list to account for the current timestamp
+	 *  time. Calling this is strongly recommended if there is a chance
+	 *  of only calling updateLoss for long stretches of time
+	 */
+        void shortenSampleList(base::Time time);
+
         /** The total estimated count of lost samples so far */
         int getLostSampleCount() const;
     };
