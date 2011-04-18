@@ -89,7 +89,7 @@ namespace aggregator
 	base::Time update(base::Time ts, int index);
 
         /** Updates the estimate for a known lost sample */
-        void updateLoss();
+	base::Time updateLoss();
 
         /** The currently estimated period
          */

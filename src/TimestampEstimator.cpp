@@ -183,10 +183,16 @@ base::Time TimestampEstimator::update(base::Time time)
     return base::Time::fromSeconds((double)m_last);
 }
 
-void TimestampEstimator::updateLoss()
+base::Time TimestampEstimator::updateLoss()
 {
     m_samples.push_back(-1);
     m_missing_samples++;
+
+    if (haveEstimate()) {
+	double period = getPeriodInternal();
+	m_last = m_last + period;
+    }
+    return base::Time::fromSeconds((double)m_last);
 }
 
 bool TimestampEstimator::haveEstimate() const
