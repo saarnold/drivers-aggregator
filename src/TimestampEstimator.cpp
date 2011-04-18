@@ -47,7 +47,7 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 {
     double current = time.toSeconds();
 
-    if (m_samples.size() >= 2)
+    if (haveEstimate())
     {
 	// Compute the period up to now for later reuse
 	double period = getPeriodInternal();
@@ -130,7 +130,7 @@ base::Time TimestampEstimator::update(base::Time time)
 
     m_samples.push_back(current);
 
-    if (m_samples.size() - m_missing_samples < 2)
+    if (!haveEstimate())
 	return time;
 
     // Recompute the period
@@ -187,6 +187,11 @@ void TimestampEstimator::updateLoss()
 {
     m_samples.push_back(-1);
     m_missing_samples++;
+}
+
+bool TimestampEstimator::haveEstimate() const
+{
+    return m_samples.size() - m_missing_samples >= 2;
 }
 
 base::Time TimestampEstimator::update(base::Time time, int index)

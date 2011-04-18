@@ -103,6 +103,9 @@ namespace aggregator
 
         /** The total estimated count of lost samples so far */
         int getLostSampleCount() const;
+
+        /** Returns true if updateLoss and getPeriod can give valid estimates */
+	bool haveEstimate() const;
     };
 }
 
