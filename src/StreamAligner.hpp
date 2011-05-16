@@ -48,7 +48,7 @@ namespace aggregator {
 
 	public:
 	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority )
-		: bufferSize( bufferSize ), callback(callback), period(period), priority(priority), lastTime(base::Time::fromSeconds(0)) {}
+		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority) {}
 
 	    virtual ~Stream() {};
 
