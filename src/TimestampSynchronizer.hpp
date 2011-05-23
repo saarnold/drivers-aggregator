@@ -22,6 +22,10 @@ namespace aggregator
 	base::Time m_matchWindowOldest;
 	base::Time m_matchWindowNewest;
 	bool m_useEstimator;
+	unsigned int m_last_item_ctr;
+	unsigned int m_last_ref_ctr;
+	bool m_have_item_ctr;
+	bool m_have_ref_ctr;
 
 	TimestampEstimator tsestimator;
     public:
@@ -53,12 +57,22 @@ namespace aggregator
 	/** Push an (item, time) pair into the internal list. */
 	void pushItem(Item const &item, base::Time const & time);
 
+	/** Push an (item, time) pair into the internal list
+	 *  and push losses according to the item counter */
+	void pushItem(Item const &item, base::Time const & time,
+		      unsigned int ctr);
+
 	/** Push information about lost items into the internal data
 	 * structures */
 	void lostItems(unsigned int count);
 
 	/** Push a reference timestamp into the internal list. */
 	void pushReference(base::Time const & ref);
+
+	/** Push a reference timestamp into the internal list
+	 *  and push losses according to the reference counter */
+	void pushReference(base::Time const & ref,
+			   unsigned int ctr);
 
 	/** Push information about lost reference timestamps into the internal
 	 * data structures */
@@ -97,10 +111,22 @@ namespace aggregator
     }
 
     template<class Item>
+    void TimestampSynchronizer<Item>::pushItem(Item const &item, base::Time const & time,
+						    unsigned int ctr)
+    {
+	if (m_have_item_ctr && ctr - m_last_item_ctr > 1)
+	    lostItems(ctr - m_last_item_ctr);
+	m_last_item_ctr = ctr;
+	pushItem(item,time);
+    }
+
+    template<class Item>
     void TimestampSynchronizer<Item>::lostItems(unsigned int count)
     {
-	//we should tell the timestamp estimator about this
-	//only really needed when there are no references
+	if (m_items.empty())
+	    return;
+	for( ; count > 0; count--)
+	    m_items.push_back(ItemInfo());
     }
 
     template<class Item>
@@ -124,9 +150,22 @@ namespace aggregator
     }
 
     template<class Item>
+    void TimestampSynchronizer<Item>::pushReference(base::Time const & ref,
+						    unsigned int ctr)
+    {
+	if (m_have_ref_ctr && ctr - m_last_ref_ctr > 1)
+	    lostReferences(ctr - m_last_ref_ctr);
+	m_last_ref_ctr = ctr;
+	pushReference(ref);
+    }
+
+    template<class Item>
     void TimestampSynchronizer<Item>::lostReferences(unsigned int count)
     {
-	//we should probably tell the timestamp estimator about this
+	if (m_refs.empty())
+	    return;
+	for( ; count > 0; count--)
+	    m_refs.push_back(base::Time());
     }
 
     template<class Item>
@@ -134,11 +173,22 @@ namespace aggregator
 						base::Time & time,
 						base::Time const & now)
     {
+	//todo: just ignoring them is not a solution ;-)
+	while(m_items.front().time.isNull())
+	    m_items.pop_front();
+
 	//drop TS in m_refs that are before the oldest m_items TS minus
 	//maximum latency for matching the item.
 	while(!m_refs.empty() && !m_items.empty() &&
-	      m_refs.front() + m_matchWindowOldest < m_items.front().time)
+	      (m_refs.front() + m_matchWindowOldest < m_items.front().time ||
+	       m_refs.front().isNull()))
 	{
+	    if (m_refs.front().isNull())
+	    {
+		tsestimator.updateLoss();
+		continue;
+	    }
+
 	    if (m_useEstimator)
 		tsestimator.update(m_refs.front());
 
