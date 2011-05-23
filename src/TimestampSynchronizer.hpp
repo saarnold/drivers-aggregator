@@ -27,11 +27,11 @@ namespace aggregator
     public:
 	/** Constructs a TimestampSynchronizer
 	 * @param maxItemLatency     Maximum age of items in the internal list
-	 * @param matchWindowOldest  The oldest relative time at which a
-	 *                           given reference timestamp matches an item
+	 * @param matchWindowOldest  The oldest relative item time at which a
+	 *                           given reference timestamp matches the item
 	 *                           time
-	 * @param matchWindowNewest  The newest relative time at which a
-	 *                           given reference timestamp matches an item
+	 * @param matchWindowNewest  The newest relative item time at which a
+	 *                           given reference timestamp matches the item
 	 *                           time
 	 * @param estimatorWindow    The window size to use to estimate
 	 *                           lost reference timestamps, 0 means not
@@ -50,11 +50,19 @@ namespace aggregator
 			      = base::Time::fromSeconds(-1),
 			      int estimatorLostThreshold = 2);
 
-	/** Push an item, time pair into the internal list. */
+	/** Push an (item, time) pair into the internal list. */
 	void pushItem(Item const &item, base::Time const & time);
+
+	/** Push information about lost items into the internal data
+	 * structures */
+	void lostItems(unsigned int count);
 
 	/** Push a reference timestamp into the internal list. */
 	void pushReference(base::Time const & ref);
+
+	/** Push information about lost reference timestamps into the internal
+	 * data structures */
+	void lostReferences(unsigned int count);
 
 	/** Fetch a synchronized item, time pair from the internal lists, using
 	 *  now and maxItemLatency to determine lost reference timestamps.
@@ -89,6 +97,13 @@ namespace aggregator
     }
 
     template<class Item>
+    void TimestampSynchronizer<Item>::lostItems(unsigned int count)
+    {
+	//we should tell the timestamp estimator about this
+	//only really needed when there are no references
+    }
+
+    template<class Item>
     void TimestampSynchronizer<Item>::pushReference(base::Time const & ref)
     {
 	//cascading a TimestampEstimator here gives a nicer estimate
@@ -106,6 +121,12 @@ namespace aggregator
 
 	    m_refs.pop_front();
 	}
+    }
+
+    template<class Item>
+    void TimestampSynchronizer<Item>::lostReferences(unsigned int count)
+    {
+	//we should probably tell the timestamp estimator about this
     }
 
     template<class Item>
