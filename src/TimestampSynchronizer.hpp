@@ -139,13 +139,14 @@ namespace aggregator
 	while(!m_refs.empty() && !m_items.empty() &&
 	      m_refs.front() + m_matchWindowOldest < m_items.front().time)
 	{
+	    if (m_useEstimator)
+		tsestimator.update(m_refs.front());
+
 	    if (m_refs.front() + m_matchWindowNewest > m_items.front().time)
 	    {
 		//got a match
 		item = m_items.front().item;
 		time = m_refs.front();
-		if (m_useEstimator)
-		    tsestimator.update(time);
 		m_items.pop_front();
 		m_refs.pop_front();
 		return true;
