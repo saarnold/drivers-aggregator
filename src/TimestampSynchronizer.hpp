@@ -7,16 +7,18 @@
 
 namespace aggregator
 {
-    template<class Item>
+    template<typename Item>
     class TimestampSynchronizer
     {
-    private:
+    public:
 	struct ItemInfo
 	{
 	    Item item;
 	    base::Time time;
 	};
+    private:
 	std::list<ItemInfo> m_items;
+	std::list<ItemInfo> m_synchItems;
 	std::list<base::Time> m_refs;
 	base::Time m_maxItemLatency;
 	base::Time m_matchWindowOldest;
@@ -28,6 +30,8 @@ namespace aggregator
 	bool m_have_ref_ctr;
 
 	TimestampEstimator tsestimator;
+
+	void synchronizeItems(base::Time const & now);
     public:
 	/** Constructs a TimestampSynchronizer
 	 * @param maxItemLatency     Maximum age of items in the internal list
@@ -82,9 +86,21 @@ namespace aggregator
 	 *  now and maxItemLatency to determine lost reference timestamps.
 	 */
 	bool fetchItem(Item &item, base::Time & time, base::Time const & now);
+
+	//these require some internal changes to be implemented efficiently
+	bool itemAvailable(base::Time const & now);
+
+	ItemInfo &item();
+
+	void popItem();
+
+	//this one is 100% speculative, but if it works avoids another copy
+	//uses and modifies the time parameter
+	//only works if there is a matching reference and the item list is empty
+	bool getTimeFor(base::Time &time);
     };
 
-    template<class Item>
+    template<typename Item>
     TimestampSynchronizer<Item>::TimestampSynchronizer
     (base::Time const & maxItemLatency,
      base::Time const & matchWindowOldest,
@@ -102,7 +118,7 @@ namespace aggregator
     {
     }
 
-    template<class Item>
+    template<typename Item>
     void TimestampSynchronizer<Item>::pushItem(Item const &item, base::Time const & time)
     {
 	m_items.push_back(ItemInfo());
@@ -110,7 +126,7 @@ namespace aggregator
 	m_items.back().time = time;
     }
 
-    template<class Item>
+    template<typename Item>
     void TimestampSynchronizer<Item>::pushItem(Item const &item, base::Time const & time,
 						    unsigned int ctr)
     {
@@ -120,34 +136,23 @@ namespace aggregator
 	pushItem(item,time);
     }
 
-    template<class Item>
+    template<typename Item>
     void TimestampSynchronizer<Item>::lostItems(unsigned int count)
     {
 	//we should tell the timestamp estimator about this
 	//only really needed when there are no references
     }
 
-    template<class Item>
+    template<typename Item>
     void TimestampSynchronizer<Item>::pushReference(base::Time const & ref)
     {
 	//cascading a TimestampEstimator here gives a nicer estimate
 	m_refs.push_back(ref);
 
-	//clear out unneeded refs
-	while(!m_refs.empty() && !m_items.empty() &&
-	      m_refs.front() + m_matchWindowOldest < m_items.front().time)
-	{
-	    if (m_refs.front() + m_matchWindowNewest > m_items.front().time)
-	    {
-		//got a match
-		break;
-	    }
-
-	    m_refs.pop_front();
-	}
+	synchronizeItems(ref);
     }
 
-    template<class Item>
+    template<typename Item>
     void TimestampSynchronizer<Item>::pushReference(base::Time const & ref,
 						    unsigned int ctr)
     {
@@ -157,16 +162,27 @@ namespace aggregator
 	pushReference(ref);
     }
 
-    template<class Item>
+    template<typename Item>
     void TimestampSynchronizer<Item>::lostReferences(unsigned int count)
     {
 	//we should probably tell the timestamp estimator about this
     }
 
-    template<class Item>
+    template<typename Item>
     bool TimestampSynchronizer<Item>::fetchItem(Item &item,
 						base::Time & time,
 						base::Time const & now)
+    {
+	if (!itemAvailable(now))
+	    return false;
+	item = this->item().item;
+	time = this->item().time;
+	popItem();
+	return true;
+    }
+
+    template<typename Item>
+    void TimestampSynchronizer<Item>::synchronizeItems(base::Time const & now)
     {
 	//drop TS in m_refs that are before the oldest m_items TS minus
 	//maximum latency for matching the item.
@@ -179,9 +195,83 @@ namespace aggregator
 	    if (m_refs.front() + m_matchWindowNewest > m_items.front().time)
 	    {
 		//got a match
-		item = m_items.front().item;
+		m_items.front().time = m_refs.front();
+		//std::list::splice is constant time
+		typename std::list<ItemInfo>::iterator it = m_items.begin();
+		m_synchItems.splice(m_synchItems.end(),
+				    m_items,
+				    m_items.begin(),
+				    ++it);
+	    }
+
+	    m_refs.pop_front();
+	}
+
+	//finally, send all m_items that sit in our buffer and are too old on their way(with the guessed timestamp)
+	while((!m_items.empty() &&
+	       m_items.front().time < now - m_maxItemLatency) ||
+	      (!m_refs.empty() && !m_items.empty() &&
+	       m_refs.front() + m_matchWindowOldest >= m_items.front().time))
+	{
+	    if (m_useEstimator)
+	    {
+		if(tsestimator.haveEstimate())
+		    m_items.front().time = tsestimator.updateLoss();
+		else
+		    tsestimator.updateLoss();
+		tsestimator.shortenSampleList(m_items.front().time);
+	    }
+
+	    //std::list::splice is constant time
+	    typename std::list<ItemInfo>::iterator it = m_items.begin();
+	    m_synchItems.splice(m_synchItems.end(),
+				m_items,
+				m_items.begin(),
+				++it);
+	}
+    }
+
+    template<typename Item>
+    bool TimestampSynchronizer<Item>::itemAvailable(base::Time const & now)
+    {
+	synchronizeItems(now);
+	return !m_synchItems.empty();
+    }
+
+    template<typename Item>
+    typename TimestampSynchronizer<Item>::ItemInfo &TimestampSynchronizer<Item>::item()
+    {
+	return m_synchItems.front();
+    }
+
+    template<typename Item>
+    void TimestampSynchronizer<Item>::popItem()
+    {
+	m_synchItems.pop_front();
+    }
+
+    template<typename Item>
+    bool TimestampSynchronizer<Item>::getTimeFor(base::Time &time)
+    {
+	//there is already another item in the queue, need to use the slow path
+	if (!m_synchItems.empty() || !m_items.empty())
+	    return false;
+
+	//what follows essentially is synchronizeItems adjusted for
+	//m_items.empty() => true, m_items.front().time => time, now => time,
+	//m_synchItems.front().time => time, m_synchItems.front().item ignored
+
+	//drop TS in m_refs that are before the oldest m_items TS minus
+	//maximum latency for matching the item.
+	while(!m_refs.empty() && m_refs.front() + m_matchWindowOldest < time)
+	{
+	    if (m_useEstimator)
+		tsestimator.update(m_refs.front());
+
+	    if (m_refs.front() + m_matchWindowNewest > time)
+	    {
+		//got a match
 		time = m_refs.front();
-		m_items.pop_front();
 		m_refs.pop_front();
 		return true;
 	    }
@@ -189,29 +279,8 @@ namespace aggregator
 	    m_refs.pop_front();
 	}
 
-	//finally, send all m_items that sit in our buffer and are too old on their way(with the guessed timestamp)
-	if((!m_items.empty() && m_items.front().time < now - m_maxItemLatency) ||
-	   (!m_refs.empty() && !m_items.empty() &&
-	    m_refs.front() + m_matchWindowOldest >= m_items.front().time))
-	{
-	    item = m_items.front().item;
-	    time = m_items.front().time;
-	    if (m_useEstimator)
-	    {
-		if(tsestimator.haveEstimate())
-		    time = tsestimator.updateLoss();
-		else
-		    tsestimator.updateLoss();
-		tsestimator.shortenSampleList(time);
-	    }
-
-	    m_items.pop_front();
-	    return true;
-	}
-
 	return false;
     }
-
 }
 
 #endif /*AGGREGATOR_TIMESTAMP_SYNCHRONIZER_HPP*/
