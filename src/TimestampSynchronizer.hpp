@@ -184,51 +184,52 @@ namespace aggregator
     template<typename Item>
     void TimestampSynchronizer<Item>::synchronizeItems(base::Time const & now)
     {
+	typename std::list<ItemInfo>::iterator item_front = m_items.begin();
+	typename std::list<base::Time>::iterator refs_front = m_refs.begin();
+
 	//drop TS in m_refs that are before the oldest m_items TS minus
 	//maximum latency for matching the item.
-	while(!m_refs.empty() && !m_items.empty() &&
-	      m_refs.front() + m_matchWindowOldest < m_items.front().time)
+	while(refs_front != m_refs.end() && item_front != m_items.end() &&
+	      *refs_front + m_matchWindowOldest < item_front->time)
 	{
 	    if (m_useEstimator)
-		tsestimator.update(m_refs.front());
+		tsestimator.update(*refs_front);
 
-	    if (m_refs.front() + m_matchWindowNewest > m_items.front().time)
+	    if (*refs_front + m_matchWindowNewest > item_front->time)
 	    {
 		//got a match
-		m_items.front().time = m_refs.front();
-		//std::list::splice is constant time
-		typename std::list<ItemInfo>::iterator it = m_items.begin();
-		m_synchItems.splice(m_synchItems.end(),
-				    m_items,
-				    m_items.begin(),
-				    ++it);
+		item_front->time = m_refs.front();
+		item_front++;
 	    }
 
-	    m_refs.pop_front();
+	    refs_front++;
 	}
 
 	//finally, send all m_items that sit in our buffer and are too old on their way(with the guessed timestamp)
-	while((!m_items.empty() &&
-	       m_items.front().time < now - m_maxItemLatency) ||
-	      (!m_refs.empty() && !m_items.empty() &&
-	       m_refs.front() + m_matchWindowOldest >= m_items.front().time))
+	while(item_front != m_items.end() &&
+	      (item_front->time < now - m_maxItemLatency ||
+	       (refs_front != m_refs.end() &&
+		*refs_front + m_matchWindowOldest >= item_front->time)))
 	{
 	    if (m_useEstimator)
 	    {
 		if(tsestimator.haveEstimate())
-		    m_items.front().time = tsestimator.updateLoss();
+		    item_front->time = tsestimator.updateLoss();
 		else
 		    tsestimator.updateLoss();
-		tsestimator.shortenSampleList(m_items.front().time);
+		tsestimator.shortenSampleList(item_front->time);
 	    }
 
-	    //std::list::splice is constant time
-	    typename std::list<ItemInfo>::iterator it = m_items.begin();
-	    m_synchItems.splice(m_synchItems.end(),
-				m_items,
-				m_items.begin(),
-				++it);
+	    item_front++;
 	}
+
+	//std::list::splice is constant time
+	m_synchItems.splice(m_synchItems.end(),
+			    m_items,
+			    m_items.begin(),
+			    item_front);
+
+	m_refs.erase(m_refs.begin(), refs_front);
     }
 
     template<typename Item>
