@@ -16,9 +16,13 @@ namespace aggregator
 	    Item item;
 	    base::Time time;
 	};
+	typedef std::list<ItemInfo> ItemList;
+	typedef typename ItemList::iterator ItemIterator;
     private:
-	std::list<ItemInfo> m_items;
-	std::list<ItemInfo> m_synchItems;
+	ItemList m_items;
+	ItemList m_synchItems;
+	ItemList m_spareItems;
+	ItemList m_sharedItems;
 	std::list<base::Time> m_refs;
 	base::Time m_maxItemLatency;
 	base::Time m_matchWindowOldest;
@@ -66,6 +70,11 @@ namespace aggregator
 	void pushItem(Item const &item, base::Time const & time,
 		      unsigned int ctr);
 
+	/** Push an initialized ItemInfo. The iterator must be obtained from
+	 *  getSpareItem
+	 */
+	void pushItem(ItemIterator const &item);
+
 	/** Push information about lost items into the internal data
 	 * structures */
 	void lostItems(unsigned int count);
@@ -87,16 +96,32 @@ namespace aggregator
 	 */
 	bool fetchItem(Item &item, base::Time & time, base::Time const & now);
 
-	//these require some internal changes to be implemented efficiently
+	/** Check whether there are Items that can be fetched using \c item()
+	 *  or discared with popItem()
+	 */
 	bool itemAvailable(base::Time const & now);
 
+	/** Return a reference to the oldest synchronized item
+	 */
 	ItemInfo &item();
 
+	/** Discard the oldest synchronized item
+	 */
 	void popItem();
 
-	//this one is 100% speculative, but if it works avoids another copy
-	//uses and modifies the time parameter
-	//only works if there is a matching reference and the item list is empty
+	/** Retrieve an iterator to an unused ItemInfo
+	 */
+	ItemIterator getSpareItem();
+
+	/** Give an iterator to an ItemInfo back. The iterator must be obtained
+	 *  from getSpareItem.
+	 */
+	void putSpareItem(ItemIterator const &item);
+
+	/** Synchronize the Tiemstamp time. Returns true on success.
+	 *  This only succeeds if there is a matching reference and no
+	 *  valid items in the synchronizer.
+	 */
 	bool getTimeFor(base::Time &time);
     };
 
@@ -121,9 +146,11 @@ namespace aggregator
     template<typename Item>
     void TimestampSynchronizer<Item>::pushItem(Item const &item, base::Time const & time)
     {
-	m_items.push_back(ItemInfo());
-	m_items.back().item = item;
-	m_items.back().time = time;
+	ItemIterator it = getSpareItem();
+
+	it->item = item;
+	it->time = time;
+	pushItem(it);
     }
 
     template<typename Item>
@@ -184,7 +211,7 @@ namespace aggregator
     template<typename Item>
     void TimestampSynchronizer<Item>::synchronizeItems(base::Time const & now)
     {
-	typename std::list<ItemInfo>::iterator item_front = m_items.begin();
+	ItemIterator item_front = m_items.begin();
 	typename std::list<base::Time>::iterator refs_front = m_refs.begin();
 
 	//drop TS in m_refs that are before the oldest m_items TS minus
@@ -248,7 +275,11 @@ namespace aggregator
     template<typename Item>
     void TimestampSynchronizer<Item>::popItem()
     {
-	m_synchItems.pop_front();
+	ItemIterator it = m_synchItems.begin();
+	m_spareItems.splice(m_spareItems.end(),
+			    m_synchItems,
+			    m_synchItems.begin(),
+			    ++it);
     }
 
     template<typename Item>
@@ -282,6 +313,44 @@ namespace aggregator
 
 	return false;
     }
+
+    template<typename Item>
+    typename TimestampSynchronizer<Item>::ItemIterator TimestampSynchronizer<Item>::getSpareItem()
+    {
+	ItemIterator it;
+	if(!m_spareItems.empty())
+	{
+	    it = m_spareItems.begin();
+	    m_sharedItems.splice(m_sharedItems.begin(),
+				 m_spareItems,
+				 m_spareItems.begin(),
+				 ++it);
+	}
+	else
+	    m_sharedItems.push_front(ItemInfo());
+	return m_sharedItems.begin();
+    }
+
+    template<typename Item>
+    void TimestampSynchronizer<Item>::pushItem(ItemIterator const &item)
+    {
+	ItemIterator it = item;
+	m_items.splice(m_items.end(),
+		       m_sharedItems,
+		       item,
+		       ++it);
+    }
+
+    template<typename Item>
+    void TimestampSynchronizer<Item>::putSpareItem(ItemIterator const &item)
+    {
+	ItemIterator it = item;
+	m_spareItems.splice(m_spareItems.begin(),
+			     m_sharedItems,
+			     item,
+			     ++it);
+    }
+
 }
 
 #endif /*AGGREGATOR_TIMESTAMP_SYNCHRONIZER_HPP*/
