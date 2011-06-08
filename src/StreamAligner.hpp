@@ -17,6 +17,7 @@ namespace aggregator {
     {
 	class StreamBase
 	{
+	    friend class StreamAligner;
 	    public:
 		StreamBase() {}
 		virtual ~StreamBase() {}
@@ -26,10 +27,13 @@ namespace aggregator {
 		virtual base::Time latestTimeStamp() const = 0;
 		virtual base::Time latestDataTime() const = 0;
 		virtual base::Time earliestDataTime() const = 0;
-		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
+		virtual const StreamStatus &getBufferStatus() const = 0;
 		virtual void copyState( const StreamBase& other ) = 0;
 
 		friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
+		
+	    protected:
+		mutable StreamStatus status;
 	};
 
 	template <class T> class Stream : public StreamBase
@@ -48,7 +52,9 @@ namespace aggregator {
 
 	public:
 	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority )
-		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority) {}
+		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority) {
+		    status.buffer_size = bufferSize;
+		}
 
 	    virtual ~Stream() {};
 
@@ -66,9 +72,11 @@ namespace aggregator {
 		return priority;
 	    }
 
-	    virtual std::pair<size_t, size_t> getBufferStatus() const
+	    virtual const StreamStatus &getBufferStatus() const
 	    {
-		return std::make_pair( buffer.size(), bufferSize );
+		status.buffer_fill = buffer.size();
+ 		status.latest_stream_time = latestTimeStamp();
+		return status;
 	    }
 
 	    virtual void copyState( const StreamBase& other )
@@ -95,6 +103,7 @@ namespace aggregator {
 		while( bufferSize > 0 && buffer.size() >= bufferSize )
 		{
 		    std::cerr << "WARNING: discarding samples from stream." << std::endl;
+		    status.samples_dropped_buffer_full++;
 		    buffer.pop_front();
 		}
 
@@ -254,6 +263,7 @@ namespace aggregator {
 		std::cerr << "WARNING: a buffer size of 0 is almost always a bad idea." << std::endl;
 
 	    streams.push_back( new Stream<T>(callback, bufferSize, period, priority) );
+	    status.streams.push_back(StreamStatus());
 	    return streams.size() - 1;
 	}
 	
@@ -266,11 +276,17 @@ namespace aggregator {
 	    if( idx < 0 )
 		throw std::runtime_error("invalid stream index.");
 
+	    streams[idx]->status.latest_sample_time = ts;
+
 	    //any sample, that is older than the last replayed sample
 	    //will never be played back and gets dropped by default
-	    if(ts < current_ts)
+	    if(ts < current_ts) 
+	    {
+		status.late_arriving_samples_dropped++;
+		streams[idx]->status.samples_dropped_late_arriving++;
 		return;
-
+	    }
+	    
 	    if( ts > latest_ts )
 		latest_ts = ts;
 	    
@@ -380,11 +396,15 @@ namespace aggregator {
 	/** return the number of streams 
 	*/
 	int getStreamSize() const { return streams.size();  } 
+
 	/** return the buffer status as a std::pair. first element in pair is
 	 * the current buffer fill and the second element is the buffer size 
 	 */
-	std::pair<size_t, size_t> getBufferStatus(int idx) const
+	const StreamStatus &getBufferStatus(int idx) const
 	{
+	    if( idx < 0 )
+		throw std::runtime_error("invalid stream index.");
+	    
 	    return streams[idx]->getBufferStatus();
 	}
 
@@ -396,16 +416,9 @@ namespace aggregator {
 	    status.current_time = getCurrentTime();
 	    status.latest_time = getLatestTime();
 
-	    const size_t num_streams = streams.size();
-	    if( status.streams.size() != num_streams )
-		status.streams.resize( streams.size() );
-	    
-	    for(size_t i=0;i<num_streams;i++)
+	    for(size_t i=0;i<streams.size();i++)
 	    {
-		const std::pair<size_t, size_t> &state( streams[i]->getBufferStatus() );
-		status.streams[i].buffer_size = state.first;
-		status.streams[i].buffer_fill = state.second; 
-		status.streams[i].latest_time = streams[i]->latestTimeStamp(); 
+		status.streams[i] = streams[i]->getBufferStatus();
 	    }
 
 	    return status;
@@ -430,8 +443,7 @@ namespace aggregator {
     inline std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base)
     {
 	using ::operator <<;
-	const std::pair<size_t, size_t> &status( base.getBufferStatus() );
-	stream << status.first << "\t" << status.second << "\t" << base.latestTimeStamp();
+	stream << base.getBufferStatus();
 	return stream;
     }
 }
