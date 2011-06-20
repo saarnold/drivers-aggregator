@@ -9,6 +9,9 @@ if (Boost_FOUND)
 
     ADD_EXECUTABLE(streamaligner-test test_streamaligner.cpp)
     TARGET_LINK_LIBRARIES(streamaligner-test sample_aggregator ${Boost_LIBRARIES})
+
+    ADD_EXECUTABLE(tstimestamper-test test_tstimestamper.cpp)
+    TARGET_LINK_LIBRARIES(tstimestamper-test sample_aggregator ${Boost_LIBRARIES})
 else(Boost_FOUND)
     message(STATUS "boost/unit not found, disabled unit test")
 endif (Boost_FOUND)
