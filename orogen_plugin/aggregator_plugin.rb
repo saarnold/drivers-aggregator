@@ -196,7 +196,11 @@ module AggregatorPlugin
 	    _#{agg_name}_status.write(#{agg_name}.getStatus());
 	}
     }")
-	    
+
+	    task.in_base_hook('stop', "
+    #{agg_name}.clear();
+    ")
+
 	end
     end
     
