@@ -48,6 +48,43 @@ BOOST_AUTO_TEST_CASE( order_test )
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
 
+BOOST_AUTO_TEST_CASE( clear_test )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time, (optional) priority
+    int s1 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(2) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(2), 1 );
+
+    reader.push( s1, base::Time::fromSeconds(1.0), string("a") ); 
+    reader.push( s1, base::Time::fromSeconds(3.0), string("c") ); 
+    reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
+    reader.push( s2, base::Time::fromSeconds(3.0), string("d") ); 
+    reader.push( s2, base::Time::fromSeconds(4.0), string("f") ); 
+    reader.push( s1, base::Time::fromSeconds(4.0), string("e") ); 
+
+    reader.clear();
+
+    std::cout << reader.getStatus() << std::endl;
+    
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
+
+    reader.push( s1, base::Time::fromSeconds(1.0), string("a") ); 
+    reader.push( s1, base::Time::fromSeconds(3.0), string("c") ); 
+    reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
+    reader.push( s2, base::Time::fromSeconds(3.0), string("d") ); 
+    reader.push( s2, base::Time::fromSeconds(4.0), string("f") ); 
+    reader.push( s1, base::Time::fromSeconds(4.0), string("e") ); 
+
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "c" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "d" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "e" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "f" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );    
+}
 
 BOOST_AUTO_TEST_CASE( remove_stream )
 {
