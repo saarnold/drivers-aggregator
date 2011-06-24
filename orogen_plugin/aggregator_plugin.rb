@@ -115,7 +115,13 @@ module AggregatorPlugin
 	    task.property("aggregator_max_latency",   'double', config.max_latency).
 			doc "Maximum time that should be waited for a delayed sample to arrive"
 	    Orocos::Generation.info("Adding property aggregator_max_latency")
-	    
+
+	    task.project.import_types_from('StreamAlignerStatus.hpp')
+
+	    #add output port for status information
+	    task.output_port("#{agg_name}_status", '/aggregator/StreamAlignerStatus')
+	    Orocos::Generation.info("Adding port #{agg_name}_status")
+
 	    config.aligned_ports.each do |m| 
 		#add propertie for adjusting the period if not existing yet
 		#this needs to be done now, as the properties must be 
@@ -148,6 +154,7 @@ module AggregatorPlugin
 	    
 	    task.add_base_header_code("#include<StreamAligner.hpp>", true)
 	    task.add_base_member("aggregator", agg_name, "aggregator::StreamAligner")
+	    task.add_base_member("lastStatusTime", "_lastStatusTime", "base::Time")
 
 	    task.in_base_hook("configure", "
     #{agg_name}.setTimeout( base::Time::fromSeconds( _aggregator_max_latency.value()) );
@@ -176,9 +183,20 @@ module AggregatorPlugin
 	boost::bind( &TaskBase::#{callback_name}, this, _1, _2 ),
 	#{buffer_size_factor}* ceil( #{config.max_latency}/#{m.port_name}Period),
 	base::Time::fromSeconds( #{m.port_name}Period ) );
-		")
+    _lastStatusTime = base::Time();")
 
 	    end
+	    
+	    task.in_base_hook('update', "
+    {
+	const base::Time curTime(base::Time::now());
+	if(curTime - _lastStatusTime > base::Time::fromSeconds(1))
+	{
+	    _lastStatusTime = curTime;
+	    _#{agg_name}_status.write(#{agg_name}.getStatus());
+	}
+    }")
+	    
 	end
     end
     
