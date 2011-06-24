@@ -52,9 +52,10 @@ namespace aggregator {
 	    int priority;
 
 	public:
-	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority )
+	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority, const std::string &name )
 		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority) {
 		    status.buffer_size = bufferSize;
+		    status.name = name;
 		}
 
 	    virtual ~Stream() {};
@@ -95,7 +96,7 @@ namespace aggregator {
 		{
 		    std::cerr << "WARNING: time order on stream is not monotone." << std::endl;
 		    throw std::runtime_error("stream not ordered in time");
-		}		    
+		}
 		
 		lastTime = ts;
 
@@ -284,9 +285,11 @@ namespace aggregator {
 	 * @param priority - if streams have data with equal timestamps, the
 	 *      one with the lower priority value will be pushed first.
 	 *
+	 * @param name - name of the stream. This is only for debug purposes
+	 * 
 	 * @result - stream index, which is used to identify the stream (e.g. for push).
 	 */
-	template <class T> int registerStream( typename Stream<T>::callback_t callback, int bufferSize, base::Time period, int priority  = -1 ) 
+	template <class T> int registerStream( typename Stream<T>::callback_t callback, int bufferSize, base::Time period, int priority  = -1, const std::string &name = std::string()) 
 	{
 	    if( bufferSize < 0 )
 	    {
@@ -309,7 +312,7 @@ namespace aggregator {
 	    if( bufferSize == 0 )
 		std::cerr << "WARNING: a buffer size of 0 is almost always a bad idea." << std::endl;
 
-	    StreamBase *newStream = new Stream<T>(callback, bufferSize, period, priority);
+	    StreamBase *newStream = new Stream<T>(callback, bufferSize, period, priority, name);
 	    
 	    //check if there is a free slot from a previous deleted stream
 	    for(size_t i = 0; i < streams.size(); i++)

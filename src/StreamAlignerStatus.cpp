@@ -12,7 +12,7 @@ std::ostream &operator<<(std::ostream &os, const aggregator::StreamAlignerStatus
 
     if( !status.streams.empty() )
     {
-	os << "idx\tbsize\tbfill\tdrop_bfull\tdrop_late\tsample time\tstream time" << std::endl;
+	os << "idx\tname\tbsize\tbfill\tdr_bfull\tdr_late\tsample time\tstream time" << std::endl;
     }
 
     int cnt = 0;
@@ -28,7 +28,8 @@ std::ostream &operator<<(std::ostream &os, const aggregator::StreamAlignerStatus
 std::ostream& operator<<(std::ostream& os, const aggregator::StreamStatus& status)
 {
     using ::operator <<;
-    os 	<< status.buffer_size << "\t"
+    os 	<< status.name << "\t"    
+	<< status.buffer_size << "\t"
 	<< status.buffer_fill << "\t"
 	<< status.samples_dropped_buffer_full << "\t"
 	<< status.samples_dropped_late_arriving << "\t"
