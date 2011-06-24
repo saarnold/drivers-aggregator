@@ -29,7 +29,8 @@ namespace aggregator {
 		virtual base::Time earliestDataTime() const = 0;
 		virtual const StreamStatus &getBufferStatus() const = 0;
 		virtual void copyState( const StreamBase& other ) = 0;
-
+		virtual void clear() = 0;
+		
 		friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
 		
 	    protected:
@@ -149,6 +150,18 @@ namespace aggregator {
 		    return buffer.front().first;
 		return base::Time();
 	    }
+	    
+	    virtual void clear()
+	    {	
+		lastTime = base::Time();
+		buffer.clear();
+		
+		status.latest_sample_time = base::Time();
+		status.latest_stream_time = base::Time();
+		status.samples_dropped_buffer_full = 0;
+		status.samples_dropped_late_arriving = 0;
+		status.buffer_fill = 0;
+	    };
 	};
 
 	static bool compareStreams( const StreamBase* b1, const StreamBase* b2 )
@@ -429,6 +442,29 @@ namespace aggregator {
 		}
 	    }
 	    return false;
+	}
+
+	/**
+	 * clears all samples in all streams, resets the statistics
+	 * and resets the playback times  but leaves the stream
+	 * setup intact.
+	 */
+	void clear()
+	{
+	    for(size_t i = 0; i < streams.size(); i++)
+	    {
+		if(streams[i])
+		{
+		    streams[i]->clear();
+		}
+	    }
+	    
+	    latest_ts = base::Time();
+	    current_ts = base::Time();
+	    
+	    status.current_time = base::Time();
+	    status.latest_time = base::Time();
+	    status.late_arriving_samples_dropped = 0;
 	}
 
 	/** latency is the time difference between the latest data item that
