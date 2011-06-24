@@ -81,8 +81,8 @@ namespace aggregator {
 
 	    virtual void copyState( const StreamBase& other )
 	    {
-		const Stream<T> &stream(static_cast<const Stream<T>& >(other));
-
+		const Stream<T> &stream(dynamic_cast<const Stream<T>& >(other));
+		
 		lastTime = stream.lastTime;
 		buffer = stream.buffer;
 		bufferSize = stream.bufferSize;
@@ -153,6 +153,12 @@ namespace aggregator {
 
 	static bool compareStreams( const StreamBase* b1, const StreamBase* b2 )
 	{
+	    if(!b1)
+		return false;
+	    
+	    if(!b2)
+		return true;
+	    
 	    const base::Time &ts1( b1->latestTimeStamp() );
 	    const base::Time &ts2( b2->latestTimeStamp() );
 
@@ -209,7 +215,15 @@ namespace aggregator {
 	    assert( streams.size() == other.streams.size() );
 	    for(size_t i=0;i<streams.size();i++)
 	    {
-		streams[i]->copyState( *other.streams[i] );
+		bool weGotStream = streams[i];
+		bool otherGotStream = other.streams[i];
+		if(weGotStream != otherGotStream)
+		    throw std::runtime_error("Stream setup of second stream aligner differs");
+		    
+		if(streams[i])
+		{
+		    streams[i]->copyState( *other.streams[i] );
+		}
 	    }
 	}
 
@@ -220,6 +234,26 @@ namespace aggregator {
 	void setTimeout(const base::Time &t )
 	{
 	    timeout = t;
+	}
+
+	/**
+	 * This function will remove the stream with the given index from the
+	 * stream aligner.
+	 * 
+	 * @param idx index of the stream that should be unregistered 
+	 */
+	void unregisterStream(int idx)
+	{
+	    if(!streams[idx])
+	    {
+		throw std::runtime_error("invalid stream index.");		
+	    }
+	    
+	    delete streams[idx];
+	    
+	    streams[idx] = 0;
+	    
+	    status.streams[idx].active = false;
 	}
 
 	/** Will register a stream with the aggregator.
@@ -262,7 +296,20 @@ namespace aggregator {
 	    if( bufferSize == 0 )
 		std::cerr << "WARNING: a buffer size of 0 is almost always a bad idea." << std::endl;
 
-	    streams.push_back( new Stream<T>(callback, bufferSize, period, priority) );
+	    StreamBase *newStream = new Stream<T>(callback, bufferSize, period, priority);
+	    
+	    //check if there is a free slot from a previous deleted stream
+	    for(size_t i = 0; i < streams.size(); i++)
+	    {
+		if(!streams[i])
+		{
+		    streams[i] = newStream;
+		    status.streams[i] = StreamStatus();
+		    return i;
+		}
+	    }
+		
+	    streams.push_back( newStream );
 	    status.streams.push_back(StreamStatus());
 	    return streams.size() - 1;
 	}
@@ -273,7 +320,7 @@ namespace aggregator {
 	 */
 	template <class T> void push( int idx, const base::Time &ts, const T& data )
 	{
-	    if( idx < 0 )
+	    if( !streams.at(idx) )
 		throw std::runtime_error("invalid stream index.");
 
 	    streams[idx]->status.latest_sample_time = ts;
@@ -298,7 +345,7 @@ namespace aggregator {
 
 	template <class T> bool getNextSample( int idx, std::pair<base::Time,T> &sample) const
 	{
-	    if( idx < 0 )
+	    if( !streams.at(idx) )
 		throw std::runtime_error("invalid stream index.");
 
 	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
@@ -334,6 +381,10 @@ namespace aggregator {
 
 	    for(stream_vector::iterator it=items.begin();it != items.end();it++)
 	    {
+		//first stream is unregistered no data there
+		if(!*it)
+		    return false;
+		
 		if( (*it)->hasData() ) 
 		{
 		    // if stream has current data, pop that data
@@ -353,7 +404,7 @@ namespace aggregator {
 			for(stream_vector::iterator it2=items.begin();it2 != items.end();it2++)
 			{
 			    
-			    if((*it2)->hasData())
+			    if(*it2 && (*it2)->hasData())
 			    {
 				if(latestDataTime < (*it2)->latestDataTime())
 				    latestDataTime = (*it2)->latestDataTime();
@@ -402,7 +453,7 @@ namespace aggregator {
 	 */
 	const StreamStatus &getBufferStatus(int idx) const
 	{
-	    if( idx < 0 )
+	    if( !streams.at(idx) )
 		throw std::runtime_error("invalid stream index.");
 	    
 	    return streams[idx]->getBufferStatus();
@@ -418,7 +469,8 @@ namespace aggregator {
 
 	    for(size_t i=0;i<streams.size();i++)
 	    {
-		status.streams[i] = streams[i]->getBufferStatus();
+		if(streams[i])
+		    status.streams[i] = streams[i]->getBufferStatus();
 	    }
 
 	    return status;

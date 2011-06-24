@@ -14,8 +14,9 @@ namespace aggregator
 	size_t samples_dropped_late_arriving;
 	base::Time latest_stream_time;	
 	base::Time latest_sample_time;
+	bool active;
 	
-	StreamStatus(): buffer_size(0), buffer_fill(0), samples_dropped_buffer_full(0), samples_dropped_late_arriving(0)
+	StreamStatus(): buffer_size(0), buffer_fill(0), samples_dropped_buffer_full(0), samples_dropped_late_arriving(0), active(true)
 	{
 	}
     };
