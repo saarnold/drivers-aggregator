@@ -157,6 +157,7 @@ module AggregatorPlugin
 	    task.add_base_member("lastStatusTime", "_lastStatusTime", "base::Time")
 
 	    task.in_base_hook("configure", "
+    #{agg_name}.clear();
     #{agg_name}.setTimeout( base::Time::fromSeconds( _aggregator_max_latency.value()) );
 	    ")
 
@@ -185,6 +186,10 @@ module AggregatorPlugin
 	base::Time::fromSeconds( #{m.port_name}Period ) );
     _lastStatusTime = base::Time();")
 
+		#deregister in cleanup hook
+		task.in_base_hook('cleanup', "
+    #{agg_name}.unregisterStream(#{index_name});")
+		
 	    end
 	    
 	    task.in_base_hook('update', "
@@ -200,6 +205,8 @@ module AggregatorPlugin
 	    task.in_base_hook('stop', "
     #{agg_name}.clear();
     ")
+
+	    
 
 	end
     end
