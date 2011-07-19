@@ -225,6 +225,8 @@ namespace aggregator
 	, m_matchWindowOldest(matchWindowOldest)
 	, m_matchWindowNewest(matchWindowNewest)
 	, m_useRefEstimator(estimatorWindow != base::Time::fromMicroseconds(0))
+	, m_have_item_ctr(false)
+	, m_have_ref_ctr(false)
 	, m_doSynchronize(false)
 	, refTsEstimator(estimatorWindow,
 			 estimatorInitialPeriod,
@@ -249,9 +251,11 @@ namespace aggregator
     void Timestamper<Item>::pushItem(Item const &item, base::Time const & time,
 						    unsigned int ctr)
     {
-	if (m_have_item_ctr && ctr - m_last_item_ctr > 1)
+      if (m_have_item_ctr && ctr - m_last_item_ctr > 1 &&
+	  (ctr > m_last_item_ctr || ctr - m_last_item_ctr < 1000))
 	    lostItems(ctr - m_last_item_ctr);
 	m_last_item_ctr = ctr;
+	m_have_item_ctr = true;
 	pushItem(item,time);
     }
 
@@ -284,9 +288,11 @@ namespace aggregator
     void Timestamper<Item>::pushReference(base::Time const & ref,
 						    unsigned int ctr)
     {
-	if (m_have_ref_ctr && ctr - m_last_ref_ctr > 1)
+	if (m_have_ref_ctr && ctr - m_last_ref_ctr > 1 &&
+	    (ctr > m_last_ref_ctr || ctr - m_last_ref_ctr < 1000))
 	    lostReferences(ctr - m_last_ref_ctr);
 	m_last_ref_ctr = ctr;
+	m_have_ref_ctr = true;
 	pushReference(ref);
     }
 
