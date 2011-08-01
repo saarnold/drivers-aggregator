@@ -230,9 +230,11 @@ namespace aggregator
 	, m_doSynchronize(false)
 	, refTsEstimator(estimatorWindow,
 			 estimatorInitialPeriod,
+			 base::Time::fromMicroseconds(0),
 			 estimatorLostThreshold)
 	, itemTsEstimator(estimatorWindow,
 			  estimatorInitialPeriod,
+			  base::Time::fromMicroseconds(0),
 			  estimatorLostThreshold)
     {
     }

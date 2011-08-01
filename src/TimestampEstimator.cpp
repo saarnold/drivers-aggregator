@@ -7,9 +7,26 @@ using namespace aggregator;
 
 TimestampEstimator::TimestampEstimator(base::Time window,
 				       base::Time initial_period,
+				       base::Time min_latency,
 				       int lost_threshold)
     : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
+    , m_latency(0)
+    , m_min_latency(min_latency.toSeconds())
+    , m_initial_period(initial_period.toSeconds())
+    , m_missing_samples(0)
+    , m_last_index(0)
+    , m_have_last_index(false)
+{
+}
+
+TimestampEstimator::TimestampEstimator(base::Time window,
+				       base::Time initial_period,
+				       int lost_threshold)
+    : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
+    , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
+    , m_latency(0)
+    , m_min_latency(0)
     , m_initial_period(initial_period.toSeconds())
     , m_missing_samples(0)
     , m_last_index(0)
@@ -118,7 +135,7 @@ base::Time TimestampEstimator::update(base::Time time)
     // (either by having been added or by adding them now)
     if (m_samples.empty())
     {
-        m_last = current;
+        m_last = current - m_latency;
         m_min_offset_reset = current;
 
 	if (m_initial_period > 0) {
@@ -136,17 +153,8 @@ base::Time TimestampEstimator::update(base::Time time)
     // Recompute the period
     double period = getPeriodInternal();
 
-    // Update the base time if we did not do it for the whole time window
-    if (current - m_min_offset_reset > m_window)
-    {
-        //std::cerr << "offsetting m_last by " << m_min_offset << std::endl;
-        m_last += m_min_offset;
-        m_min_offset = period;
-        m_min_offset_reset = current;
-    }
-
     // Check for lost samples
-    int sample_distance = round((current - m_last) / period);
+    int sample_distance = round((current - m_last - m_latency) / period);
     if (sample_distance > 1 && m_lost_threshold != INT_MAX)
         m_lost.push_back(sample_distance - 1);
     else
@@ -158,26 +166,24 @@ base::Time TimestampEstimator::update(base::Time time)
         m_lost_total += lost_count;
         m_lost.clear();
         //std::cout << "lost " << lost_count << " samples" << std::endl;
-        //std::cout << "  original current-last ==" << current - m_last << std::endl;
+        //std::cout << "  original current-last ==" << current - m_last + m_latency << std::endl;
         //std::cout << "  period ==" << period << std::endl;
         m_last = m_last + period * lost_count;
         //std::cout << "  updated current-last ==" << current - m_last << std::endl;
     }
 
-    if (m_last + period > current)
+    m_last = m_last + period;
+    m_min_offset = std::min(m_min_offset, current - (double)m_last - m_latency);
+
+    if (m_min_offset < 0 || current - m_min_offset_reset > m_window)
     {
-        //std::cerr << "found earliest sample at " << current-m_last << std::endl;
-        m_last = current;
-        m_lost.clear();
+	if (m_min_offset < 0)
+	    //need to clear because m_last will "jump" backwards
+	    m_lost.clear();
+
+        m_last += m_min_offset;
         m_min_offset = period;
         m_min_offset_reset = current;
-    }
-    else
-    {
-        m_last = m_last + period;
-        if (current - m_last < 0)
-            throw std::logic_error("base time is after current sample");
-        m_min_offset = std::min(m_min_offset, current - (double)m_last);
     }
 
     return base::Time::fromSeconds((double)m_last);
@@ -193,6 +199,37 @@ base::Time TimestampEstimator::updateLoss()
 	m_last = m_last + period;
     }
     return base::Time::fromSeconds((double)m_last);
+}
+
+void TimestampEstimator::updateReference(base::Time ts)
+{
+    if (!haveEstimate())
+	return;
+
+    double period = getPeriodInternal();
+
+    double time = ts.toSeconds();
+    //adjust m_latency and m_last so that:
+    //mlast' + m_latency' = m_last + m_latency  //this is to not trip update()
+    //m_latency' >= m_min_latency
+    //m_latency' < m_min_latency + period
+    //m_last' = ts + n*period | n \in \Z
+
+    //m_last' = ts + n*period
+
+    //m_latency' - m_last - m_latency =  - ts - n*period
+    //m_latency' - m_last - m_latency >= m_min_latency - m_last - m_latency
+    //m_latency' - m_last - m_latency < m_min_latency + period - m_last - m_latency
+
+    // n <= (m_last + m_latency - ts - m_min_latency)/period
+    // n > (m_last + m_latency - ts - m_min_latency)/period - 1
+
+    //this could probably use a more gradual approach
+    int n;
+    n = (m_last + m_latency - time - m_min_latency)/period;
+
+    m_latency = m_last + m_latency - time - n * period;
+    m_last = time + n * period;
 }
 
 bool TimestampEstimator::haveEstimate() const

@@ -42,6 +42,8 @@ namespace aggregator
 
         double m_min_offset;
         double m_min_offset_reset;
+	double m_latency;
+	double m_min_latency;
 
 	/** Initial period used when m_samples is empty */
 	double m_initial_period;
@@ -64,6 +66,9 @@ namespace aggregator
 	 * @arg initial_period initial estimate for the period, used to fill
 	 *        the initial window.
 	 *
+	 * @arg min_latency the smallest amount of latency between the
+	 *        reference timestamps and the data timestamps
+	 *
          * @arg lost_threshold if that many calls to update() are out of bounds
          *        (i.e. the distance between the two timestamps are greater than
          *        the period), then we consider that we lost samples and update
@@ -73,6 +78,12 @@ namespace aggregator
 	 *        or know about all lost samples and use updateLoss()/
 	 *        update(base::Time,int)
          */
+	TimestampEstimator(base::Time window,
+			   base::Time initial_period
+			   = base::Time::fromSeconds(-1),
+			   base::Time min_latency
+			   = base::Time::fromSeconds(0),
+			   int lost_threshold = 2);
 	TimestampEstimator(base::Time window,
 			   base::Time initial_period
 			   = base::Time::fromSeconds(-1),
@@ -90,6 +101,9 @@ namespace aggregator
 
         /** Updates the estimate for a known lost sample */
 	base::Time updateLoss();
+
+        /** Updates the estimate using a reference */
+	void updateReference(base::Time ts);
 
         /** The currently estimated period
          */
