@@ -79,17 +79,14 @@ namespace aggregator
 	 *        update(base::Time,int)
          */
 	TimestampEstimator(base::Time window,
-			   base::Time initial_period
-			   = base::Time::fromSeconds(-1),
-			   base::Time min_latency
-			   = base::Time::fromSeconds(0),
+			   base::Time initial_period,
+			   base::Time min_latency,
 			   int lost_threshold = 2);
 	TimestampEstimator(base::Time window,
-			   base::Time initial_period
-			   = base::Time::fromSeconds(-1),
+			   base::Time initial_period,
 			   int lost_threshold = 2);
 	TimestampEstimator(base::Time window,
-			   int lost_threshold);
+			   int lost_threshold = 2);
 
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);
