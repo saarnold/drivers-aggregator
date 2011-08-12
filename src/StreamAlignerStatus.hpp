@@ -24,6 +24,7 @@ namespace aggregator
 
     struct StreamAlignerStatus
     {
+	std::string task_name;
 	base::Time current_time;
 	base::Time latest_time;
 	size_t late_arriving_samples_dropped;
