@@ -1,5 +1,5 @@
-add_library(sample_aggregator SHARED TimestampEstimator.cpp StreamAlignerStatus.cpp)
-install(FILES Timestamper.hpp TimestampEstimator.hpp StreamAligner.hpp PullStreamAligner.hpp StreamAlignerStatus.hpp
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-install(TARGETS sample_aggregator
-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+rock_library(sample_aggregator
+    SOURCES TimestampEstimator.cpp StreamAlignerStatus.cpp
+    DEPS_PKGCONFIG base-types
+    HEADERS Timestamper.hpp TimestampEstimator.hpp StreamAligner.hpp PullStreamAligner.hpp StreamAlignerStatus.hpp)
+    
