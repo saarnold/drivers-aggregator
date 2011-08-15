@@ -9,7 +9,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/execution_monitor.hpp>  
 
-#include "TimestampEstimator.hpp"
+#include <aggregator/TimestampEstimator.hpp>
 using namespace aggregator;
 
 BOOST_AUTO_TEST_CASE(test_perfect_stream)

@@ -1,7 +1,7 @@
 #ifndef __AGGREGATORE_PULLSTREAMALIGNER__
 #define __AGGREGATORE_PULLSTREAMALIGNER__
 
-#include <StreamAligner.hpp>
+#include <aggregator/StreamAligner.hpp>
 
 namespace aggregator
 {

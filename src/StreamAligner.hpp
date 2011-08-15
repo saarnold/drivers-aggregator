@@ -9,7 +9,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <stdexcept> 
 #include <iostream>
-#include <StreamAlignerStatus.hpp>
+#include <aggregator/StreamAlignerStatus.hpp>
 
 namespace aggregator {
 

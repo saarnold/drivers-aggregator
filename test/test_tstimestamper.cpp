@@ -9,7 +9,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/execution_monitor.hpp>
 
-#include "Timestamper.hpp"
+#include <aggregator/Timestamper.hpp>
 using namespace aggregator;
 
 BOOST_AUTO_TEST_CASE(test_simple_api)
