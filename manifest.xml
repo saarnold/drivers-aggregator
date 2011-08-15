@@ -13,5 +13,6 @@
     <license>LGPL v2 or later</license>
 
     <depend package="base/types" />
+    <depend package="gui/vizkit" optional="1"/>
     <tags>stable</tags>
 </package>
