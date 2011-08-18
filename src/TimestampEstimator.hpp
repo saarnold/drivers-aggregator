@@ -88,6 +88,22 @@ namespace aggregator
 	TimestampEstimator(base::Time window,
 			   int lost_threshold = 2);
 
+        /** Resets this estimator to an initial state, reusing the same
+         * parameters
+         *
+         * See the constructor documentation for parameter documentation
+         */
+	void reset();
+
+        /** Changes the estimator parameters, and resets it to an initial state
+         *
+         * See the constructor documentation for parameter documentation
+         */
+	void reset(base::Time window,
+			   base::Time initial_period,
+			   base::Time min_latency,
+			   int lost_threshold);
+
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);
 

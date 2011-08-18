@@ -9,40 +9,48 @@ TimestampEstimator::TimestampEstimator(base::Time window,
 				       base::Time initial_period,
 				       base::Time min_latency,
 				       int lost_threshold)
-    : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
-    , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
-    , m_latency(0)
-    , m_min_latency(min_latency.toSeconds())
-    , m_initial_period(initial_period.toSeconds())
-    , m_missing_samples(0)
-    , m_last_index(0)
-    , m_have_last_index(false)
 {
+    reset(window, initial_period, min_latency, lost_threshold);
 }
 
 TimestampEstimator::TimestampEstimator(base::Time window,
 				       base::Time initial_period,
 				       int lost_threshold)
-    : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
-    , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
-    , m_latency(0)
-    , m_min_latency(0)
-    , m_initial_period(initial_period.toSeconds())
-    , m_missing_samples(0)
-    , m_last_index(0)
-    , m_have_last_index(false)
 {
+    reset(window, initial_period, base::Time(), lost_threshold);
 }
 
 TimestampEstimator::TimestampEstimator(base::Time window,
 				       int lost_threshold)
-    : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
-    , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
-    , m_initial_period(-1)
-    , m_missing_samples(0)
-    , m_last_index(0)
-    , m_have_last_index(false)
 {
+    reset(window, base::Time(), base::Time(), lost_threshold);
+}
+
+void TimestampEstimator::reset()
+{
+    reset(base::Time::fromSeconds(m_window),
+            base::Time::fromSeconds(m_initial_period),
+            base::Time::fromSeconds(m_min_latency),
+            m_lost_threshold);
+}
+
+void TimestampEstimator::reset(base::Time window,
+				       base::Time initial_period,
+				       base::Time min_latency,
+				       int lost_threshold)
+{
+    m_window = window.toSeconds();
+    m_lost_threshold = lost_threshold;
+    m_lost.clear();
+    m_lost_total = 0;
+    m_min_offset = 0;
+    m_min_offset_reset = 0;
+    m_latency = 0;
+    m_min_latency = min_latency.toSeconds();
+    m_initial_period = initial_period.toSeconds();
+    m_missing_samples = 0;
+    m_last_index = 0;
+    m_have_last_index = false;
 }
 
 base::Time TimestampEstimator::getPeriod() const
