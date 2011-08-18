@@ -38,6 +38,8 @@ TimestampEstimator::TimestampEstimator(base::Time window,
 				       int lost_threshold)
     : m_window(window.toSeconds()), m_lost_threshold(lost_threshold)
     , m_lost(0), m_lost_total(0), m_min_offset(0), m_min_offset_reset(0)
+    , m_latency(0)
+    , m_min_latency(0)
     , m_initial_period(-1)
     , m_missing_samples(0)
     , m_last_index(0)
