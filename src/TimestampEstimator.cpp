@@ -53,6 +53,12 @@ void TimestampEstimator::reset(base::Time window,
     m_missing_samples = 0;
     m_last_index = 0;
     m_have_last_index = false;
+
+    m_samples.clear();
+    if (m_initial_period > 0)
+        m_samples.set_capacity(10 + (m_window + m_initial_period) / m_initial_period);
+    else
+        m_samples.set_capacity(20); // should be enough to get us a first period estimate
 }
 
 base::Time TimestampEstimator::getPeriod() const
@@ -60,7 +66,7 @@ base::Time TimestampEstimator::getPeriod() const
 double TimestampEstimator::getPeriodInternal() const
 {
     int count = m_samples.size();
-    std::list<double>::const_reverse_iterator b;
+    boost::circular_buffer<double>::const_reverse_iterator b;
     //ignore lost samples(value <= 0) at the end of m_samples
     for(b = m_samples.rbegin();	*b <= 0 && b != m_samples.rend(); b++, count--)
     {}
@@ -80,18 +86,18 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 	double period = getPeriodInternal();
 
 	//scan forward until we hit the window size
-	std::list<double>::iterator end;
+        boost::circular_buffer<double>::iterator end;
 	end = m_samples.begin();
 	double min_time = current - m_window;
 	while(end != m_samples.end() && *end < min_time)
 	    end++;
 
-	std::list<double>::iterator window_begin = end;
+        boost::circular_buffer<double>::iterator window_begin = end;
 
 	//scan backward until we find a gap that is at least period sized.
 	//that should be the last sample from a burst, giving better
 	//period estimation
-	std::list<double>::iterator last_good = end;
+        boost::circular_buffer<double>::iterator last_good = end;
 	int smp_count = 0;
 	while(end != m_samples.begin())
 	{
@@ -115,7 +121,7 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 	//scan forward again as long as we find lost samples
 	for(;end != m_samples.end() && *end <= 0; end++) {}
 
-	std::list<double>::iterator it;
+        boost::circular_buffer<double>::iterator it;
 	for(it = m_samples.begin(); it != end; it++) {
 	    if (*it <= 0)
 		m_missing_samples--;
@@ -155,6 +161,21 @@ base::Time TimestampEstimator::update(base::Time time)
 		m_samples.push_front(current - m_initial_period * n);
 	    }
 	}
+    }
+
+    if (m_samples.full() && !m_initial_period)
+    {
+        if (haveEstimate())
+        {
+            double period = getPeriodInternal();
+            int new_capacity = 10 + (m_window + period) / period;
+            if (m_samples.capacity() < new_capacity)
+                m_samples.set_capacity(new_capacity);
+        }
+        else
+        {
+            m_samples.set_capacity(20 + m_samples.capacity());
+        }
     }
 
     m_samples.push_back(current);

@@ -2,7 +2,7 @@
 #define AGGREGATOR_TIMESTAMP_ESTIMATOR_HPP
 
 #include <base/time.h>
-#include <list>
+#include <boost/circular_buffer.hpp>
 #include <vector>
 
 #include <aggregator/TimestampEstimatorStatus.hpp>
@@ -23,7 +23,7 @@ namespace aggregator
         /** The currently stored timestamps. values < 0 are placeholders for
 	 *  missing samples
 	 */
-        std::list<double> m_samples;
+        boost::circular_buffer<double> m_samples;
 
         /** The initial time given last to update(). It is only used in
          * the value returned by getStatus()
