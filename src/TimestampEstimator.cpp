@@ -97,7 +97,7 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 	{
 	    if (*end > 0)
 	    {
-		if (smp_count > 0 && (*last_good-*end) / smp_count >= period)
+		if (smp_count > 0 && (*last_good-*end) / smp_count >= 0.5 * period)
 		    break;
 
 		last_good = end;
