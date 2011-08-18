@@ -5,6 +5,8 @@
 #include <list>
 #include <vector>
 
+#include <aggregator/TimestampEstimatorStatus.hpp>
+
 namespace aggregator
 {
     /** The timestamp estimator takes a stream of samples and determines a best
@@ -22,6 +24,11 @@ namespace aggregator
 	 *  missing samples
 	 */
         std::list<double> m_samples;
+
+        /** The initial time given last to update(). It is only used in
+         * the value returned by getStatus()
+         */
+        base::Time m_last_update;
 
         /** The last estimated timestamp */
         long double m_last;
@@ -137,11 +144,23 @@ namespace aggregator
         /** Returns true if updateLoss and getPeriod can give valid estimates */
 	bool haveEstimate() const;
 
+        /** Returns the current latency estimate. This is valid only if
+         * updateReference() is called
+         */
+        base::Time getLatency() const;
+
         /** Returns the maximum jitter duration estimated so far
          *
          * It is reset to zero only on reset
          */
         base::Time getMaxJitter() const;
+
+        /** Returns a data structure that represents the estimator's internal
+         * status
+         *
+         * This is constant time
+         */
+        TimestampEstimatorStatus getStatus() const;
     };
 }
 

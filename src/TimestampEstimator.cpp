@@ -43,6 +43,7 @@ void TimestampEstimator::reset(base::Time window,
     m_lost_threshold = lost_threshold;
     m_lost.clear();
     m_lost_total = 0;
+    m_last_update = base::Time();
     m_min_offset = 0;
     m_min_offset_reset = 0;
     m_latency = 0;
@@ -137,6 +138,8 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 base::Time TimestampEstimator::update(base::Time time)
 {
     shortenSampleList(time);
+
+    m_last_update = time;
 
     double current = time.toSeconds();
 
@@ -267,8 +270,24 @@ base::Time TimestampEstimator::update(base::Time time, int index)
     return update(time);
 }
 
+base::Time TimestampEstimator::getLatency() const
+{
+    return base::Time::fromSeconds(m_latency);
+}
+
 base::Time TimestampEstimator::getMaxJitter() const
 {
     return base::Time::fromSeconds(m_max_jitter);
+}
+
+TimestampEstimatorStatus TimestampEstimator::getStatus() const
+{
+    TimestampEstimatorStatus status;
+    status.stamp = m_last_update;
+    status.period = getPeriod();
+    status.latency = getLatency();
+    status.max_jitter = getMaxJitter();
+    status.lost_samples = getLostSampleCount();
+    return status;
 }
 
