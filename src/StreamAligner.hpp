@@ -3,7 +3,7 @@
 
 #include <base/time.h>
 #include <vector>
-#include <queue>
+#include <boost/circular_buffer.hpp>
 #include <algorithm>
 #include <boost/function.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -44,7 +44,7 @@ namespace aggregator {
 
 	protected:
 	    typedef std::pair<base::Time,T> item;
-	    std::deque<item> buffer;
+	    boost::circular_buffer<item> buffer;
 	    size_t bufferSize;
 	    callback_t callback;
 	    base::Time period; 
@@ -53,10 +53,19 @@ namespace aggregator {
 
 	public:
 	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority, const std::string &name )
-		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority) {
-		    status.buffer_size = bufferSize;
-		    status.name = name;
-		}
+		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority)
+            {
+                status.buffer_size = bufferSize;
+                status.name = name;
+
+                if (bufferSize > 0)
+                    buffer.set_capacity( bufferSize );
+                else
+                {
+                    // initial size, will be reallocated at runtime
+                    buffer.set_capacity( 20 );
+                }
+            }
 
 	    virtual ~Stream() {};
 
@@ -100,16 +109,17 @@ namespace aggregator {
 		
 		lastTime = ts;
 
-		// if the buffer is full, make some space
-		// sorry old data, you gotta go!
-		while( bufferSize > 0 && buffer.size() >= bufferSize )
-		{
-		    std::cerr << "WARNING: discarding samples from stream." << std::endl;
-		    status.samples_dropped_buffer_full++;
-		    buffer.pop_front();
-		}
-
-		buffer.push_back( std::make_pair(ts, data) ); 
+                if (bufferSize > 0)
+                {
+                    // if the buffer is full, just use the behaviour of the circular
+                    // buffer: discard old data.
+                    status.samples_dropped_buffer_full++;
+                }
+                else
+                {
+                    buffer.set_capacity(buffer.capacity() * 2);
+                }
+                buffer.push_back( std::make_pair(ts, data) ); 
 	    }
 
 	    /** take the last item of the stream queue and 
@@ -310,7 +320,7 @@ namespace aggregator {
 	    }
 
 	    if( bufferSize == 0 )
-		std::cerr << "WARNING: a buffer size of 0 is almost always a bad idea." << std::endl;
+		std::cerr << "WARNING: a buffer size of 0 means a dynamically allocating stream aligner buffer" << std::endl;
 
 	    StreamBase *newStream = new Stream<T>(callback, bufferSize, period, priority, name);
 	    
