@@ -128,14 +128,7 @@ BOOST_AUTO_TEST_CASE( drop_test )
 
     reader.push( s1, base::Time::fromSeconds(10.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(11.0), string("b") ); 
-    bool gotException = false;
-    try {
-    reader.push( s1, base::Time::fromSeconds(10.0), string("3") ); 
-    } catch (std::runtime_error &e)
-    {
-	gotException = true;
-    } 
-    BOOST_CHECK_EQUAL(gotException, true);
+    BOOST_REQUIRE_THROW(reader.push( s1, base::Time::fromSeconds(10.0), string("3") ), std::runtime_error);
     
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
@@ -152,14 +145,7 @@ BOOST_AUTO_TEST_CASE( copy_state_test )
 
     reader.push( s1, base::Time::fromSeconds(10.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(11.0), string("b") ); 
-    bool gotException = false;
-    try {
-    reader.push( s1, base::Time::fromSeconds(10.0), string("3") ); 
-    } catch (std::runtime_error &e)
-    {
-	gotException = true;
-    } 
-    BOOST_CHECK_EQUAL(gotException, true);
+    BOOST_REQUIRE_THROW(reader.push( s1, base::Time::fromSeconds(10.0), string("3") ), std::runtime_error);
 
     StreamAligner reader2;
     reader2.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
