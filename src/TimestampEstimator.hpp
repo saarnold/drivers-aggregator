@@ -45,6 +45,9 @@ namespace aggregator
 	double m_latency;
 	double m_min_latency;
 
+        /** Maximum value taken by the jitter, in seconds */
+        double m_max_jitter;
+
 	/** Initial period used when m_samples is empty */
 	double m_initial_period;
 
@@ -133,6 +136,12 @@ namespace aggregator
 
         /** Returns true if updateLoss and getPeriod can give valid estimates */
 	bool haveEstimate() const;
+
+        /** Returns the maximum jitter duration estimated so far
+         *
+         * It is reset to zero only on reset
+         */
+        base::Time getMaxJitter() const;
     };
 }
 

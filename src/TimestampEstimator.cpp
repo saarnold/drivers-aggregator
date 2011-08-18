@@ -46,6 +46,7 @@ void TimestampEstimator::reset(base::Time window,
     m_min_offset = 0;
     m_min_offset_reset = 0;
     m_latency = 0;
+    m_max_jitter = 0;
     m_min_latency = min_latency.toSeconds();
     m_initial_period = initial_period.toSeconds();
     m_missing_samples = 0;
@@ -193,6 +194,10 @@ base::Time TimestampEstimator::update(base::Time time)
         m_min_offset = period;
         m_min_offset_reset = current;
     }
+    else
+    {
+        m_max_jitter = std::max(m_max_jitter, current - (double)m_last);
+    }
 
     return base::Time::fromSeconds((double)m_last);
 }
@@ -261,3 +266,9 @@ base::Time TimestampEstimator::update(base::Time time, int index)
     }
     return update(time);
 }
+
+base::Time TimestampEstimator::getMaxJitter() const
+{
+    return base::Time::fromSeconds(m_max_jitter);
+}
+
