@@ -104,7 +104,7 @@ namespace aggregator
 	TimestampEstimator(base::Time window,
 			   base::Time initial_period,
 			   int lost_threshold = 2);
-	TimestampEstimator(base::Time window,
+	TimestampEstimator(base::Time window = base::Time(),
 			   int lost_threshold = 2);
 
         /** Resets this estimator to an initial state, reusing the same
