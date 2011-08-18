@@ -66,6 +66,15 @@ namespace aggregator
 
 	/** m_last_index is initialized */
 	bool m_have_last_index;
+
+        /** Internal helper for the reset() methods, that take double directly.
+         * This avoid converting the internal parameters to base::Time and then
+         * to double again.
+         */
+	void internalReset(double window,
+			   double initial_period,
+			   double min_latency,
+			   int lost_threshold = 2);
     public:
         /** Creates a timestamp estimator
          *
@@ -105,6 +114,17 @@ namespace aggregator
          */
 	void reset();
 
+        /** @overload
+         */
+	void reset(base::Time window,
+			   int lost_threshold = 2);
+
+        /** @overload
+         */
+	void reset(base::Time window,
+			   base::Time initial_period,
+			   int lost_threshold = 2);
+
         /** Changes the estimator parameters, and resets it to an initial state
          *
          * See the constructor documentation for parameter documentation
@@ -112,7 +132,7 @@ namespace aggregator
 	void reset(base::Time window,
 			   base::Time initial_period,
 			   base::Time min_latency,
-			   int lost_threshold);
+			   int lost_threshold = 2);
 
         /** Updates the estimate and return the actual timestamp for +ts+ */
         base::Time update(base::Time ts);

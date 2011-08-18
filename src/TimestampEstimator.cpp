@@ -28,10 +28,29 @@ TimestampEstimator::TimestampEstimator(base::Time window,
 
 void TimestampEstimator::reset()
 {
-    reset(base::Time::fromSeconds(m_window),
-            base::Time::fromSeconds(m_initial_period),
-            base::Time::fromSeconds(m_min_latency),
+    internalReset(m_window,
+            m_initial_period,
+            m_min_latency,
             m_lost_threshold);
+}
+
+void TimestampEstimator::reset(base::Time window,
+				       int lost_threshold)
+{
+    internalReset(window.toSeconds(),
+            m_initial_period,
+            m_min_latency,
+            lost_threshold);
+}
+
+void TimestampEstimator::reset(base::Time window,
+				       base::Time initial_period,
+				       int lost_threshold)
+{
+    internalReset(window.toSeconds(),
+            initial_period.toSeconds(),
+            m_min_latency,
+            lost_threshold);
 }
 
 void TimestampEstimator::reset(base::Time window,
@@ -39,7 +58,18 @@ void TimestampEstimator::reset(base::Time window,
 				       base::Time min_latency,
 				       int lost_threshold)
 {
-    m_window = window.toSeconds();
+    internalReset(window.toSeconds(),
+            initial_period.toSeconds(),
+            min_latency.toSeconds(),
+            lost_threshold);
+}
+
+void TimestampEstimator::internalReset(double window,
+				       double initial_period,
+				       double min_latency,
+				       int lost_threshold)
+{
+    m_window = window;
     m_lost_threshold = lost_threshold;
     m_lost.clear();
     m_lost_total = 0;
@@ -48,8 +78,8 @@ void TimestampEstimator::reset(base::Time window,
     m_min_offset_reset = 0;
     m_latency = 0;
     m_max_jitter = 0;
-    m_min_latency = min_latency.toSeconds();
-    m_initial_period = initial_period.toSeconds();
+    m_min_latency = min_latency;
+    m_initial_period = initial_period;
     m_missing_samples = 0;
     m_last_index = 0;
     m_have_last_index = false;
