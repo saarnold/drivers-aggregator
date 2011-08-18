@@ -198,7 +198,7 @@ base::Time TimestampEstimator::update(base::Time time)
         if (haveEstimate())
         {
             double period = getPeriodInternal();
-            int new_capacity = 10 + (m_window + period) / period;
+            size_t new_capacity = 10 + (m_window + period) / period;
             if (m_samples.capacity() < new_capacity)
                 m_samples.set_capacity(new_capacity);
         }
