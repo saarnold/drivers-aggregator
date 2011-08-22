@@ -23,6 +23,9 @@ namespace aggregator {
         /** Count of lost samples so far
          */
         int lost_samples;
+        /** Size of the actual internal window, in samples
+         */
+        int window_size;
 
         TimestampEstimatorStatus()
             : lost_samples(0) {}

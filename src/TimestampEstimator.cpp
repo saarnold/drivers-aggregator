@@ -127,13 +127,16 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 	//scan backward until we find a gap that is at least period sized.
 	//that should be the last sample from a burst, giving better
 	//period estimation
+        //
+        //The 0.9 factor on the period is here to allow a bit of jitter.
+        //Otherwise, we might end up keeping too much data for too long
         boost::circular_buffer<double>::iterator last_good = end;
 	int smp_count = 0;
 	while(end != m_samples.begin())
 	{
 	    if (*end > 0)
 	    {
-		if (smp_count > 0 && (*last_good-*end) / smp_count >= 0.5 * period)
+		if (smp_count > 0 && (*last_good-*end) / smp_count >= 0.9 * period)
 		    break;
 
 		last_good = end;
@@ -339,6 +342,7 @@ TimestampEstimatorStatus TimestampEstimator::getStatus() const
     status.latency = getLatency();
     status.max_jitter = getMaxJitter();
     status.lost_samples = getLostSampleCount();
+    status.window_size = m_samples.size();
     return status;
 }
 
