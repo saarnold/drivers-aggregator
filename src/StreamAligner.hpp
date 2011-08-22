@@ -115,7 +115,7 @@ namespace aggregator {
                     // buffer: discard old data.
                     status.samples_dropped_buffer_full++;
                 }
-                else
+                else if (buffer.full())
                 {
                     buffer.set_capacity(buffer.capacity() * 2);
                 }
