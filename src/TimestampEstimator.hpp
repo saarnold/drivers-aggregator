@@ -62,7 +62,7 @@ namespace aggregator
 	unsigned int m_missing_samples;
 
 	/** the value of the last index given to us using update */
-	unsigned int m_last_index;
+	int64_t m_last_index;
 
 	/** m_last_index is initialized */
 	bool m_have_last_index;
@@ -140,7 +140,7 @@ namespace aggregator
         /** Updates the estimate and return the actual timestamp for +ts+,
 	 *  calculating lost samples from the index
 	 */
-	base::Time update(base::Time ts, int index);
+	base::Time update(base::Time ts, int64_t index);
 
         /** Updates the estimate for a known lost sample */
 	base::Time updateLoss();

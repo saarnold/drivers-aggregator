@@ -307,7 +307,7 @@ bool TimestampEstimator::haveEstimate() const
     return m_samples.size() - m_missing_samples >= 2;
 }
 
-base::Time TimestampEstimator::update(base::Time time, int index)
+base::Time TimestampEstimator::update(base::Time time, int64_t index)
 {
     int lost = 0;
     if (!m_have_last_index)
@@ -316,6 +316,7 @@ base::Time TimestampEstimator::update(base::Time time, int index)
 	lost = index - m_last_index - 1;
     m_last_index = index;
 
+    int64_t lost = index - m_last_index - 1;
     while(lost > 0)
     {
 	lost--;
