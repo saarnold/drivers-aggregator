@@ -309,14 +309,15 @@ bool TimestampEstimator::haveEstimate() const
 
 base::Time TimestampEstimator::update(base::Time time, int64_t index)
 {
-    int lost = 0;
-    if (!m_have_last_index)
+    if (!m_have_last_index || index < m_last_index)
+    {
 	m_have_last_index = true;
-    else
-	lost = index - m_last_index - 1;
-    m_last_index = index;
+        m_last_index = index;
+        return update(time);
+    }
 
     int64_t lost = index - m_last_index - 1;
+    m_last_index = index;
     while(lost > 0)
     {
 	lost--;
