@@ -3,7 +3,7 @@
 
 #include <base/time.h>
 #include <vector>
-#include <boost/circular_buffer.hpp>
+#include <base/circular_buffer.h>
 #include <algorithm>
 #include <boost/function.hpp>
 #include <boost/tuple/tuple.hpp>
