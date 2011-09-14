@@ -103,7 +103,7 @@ namespace aggregator {
 	    { 
 		if(ts < lastTime)
 		{
-		    std::cerr << "WARNING: time order on stream is not monotone." << std::endl;
+		    std::cerr << "WARNING: time order on stream '" << status.name << "' is not monotone." << std::endl;
 		    throw std::runtime_error("stream not ordered in time");
 		}
 		
