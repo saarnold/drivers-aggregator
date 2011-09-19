@@ -10,8 +10,8 @@ class WidgetTester : public QObject {
 public : 
     	WidgetTester(StreamAlignerWidget *saw) : saw(saw)
 	{
-	    status.late_arriving_samples_dropped = 57;    
-	    status.task_name = "TestTask";
+	    status.samples_dropped_late_arriving = 57;    
+	    status.name = "TestTask";
 	    
 	    aggregator::StreamStatus sstatus;
 	    sstatus.active = true;
