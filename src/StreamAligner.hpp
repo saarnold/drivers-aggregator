@@ -86,7 +86,8 @@ namespace aggregator {
 	    virtual const StreamStatus &getBufferStatus() const
 	    {
 		status.buffer_fill = buffer.size();
- 		status.latest_stream_time = latestTimeStamp();
+		status.latest_data_time = latestDataTime();
+ 		status.earliest_data_time = earliestDataTime();
 		return status;
 	    }
 
@@ -103,8 +104,8 @@ namespace aggregator {
 	    { 
 		if(ts < lastTime)
 		{
-		    std::cerr << "WARNING: time order on stream '" << status.name << "' is not monotone." << std::endl;
-		    throw std::runtime_error("stream not ordered in time");
+		    status.samples_backward_in_time++;
+		    return;
 		}
 		
 		lastTime = ts;
@@ -117,9 +118,10 @@ namespace aggregator {
 		        // buffer: discard old data.
 		        status.samples_dropped_buffer_full++;
 		    }
-		    else 
+		    else
 		    {
 		        buffer.set_capacity(buffer.capacity() * 2);
+			status.buffer_size = buffer.capacity();
 		    }
 		}
                 buffer.push_back( std::make_pair(ts, data) ); 
@@ -132,6 +134,7 @@ namespace aggregator {
 	    { 
 		if( hasData() )
 		{
+		    status.samples_processed++;
 		    base::Time ts = buffer.front().first;
 		    if(callback)
 			callback( ts, buffer.front().second );
@@ -352,13 +355,14 @@ namespace aggregator {
 	    if( !streams.at(idx) )
 		throw std::runtime_error("invalid stream index.");
 
+	    streams[idx]->status.samples_received++;
 	    streams[idx]->status.latest_sample_time = ts;
 
 	    //any sample, that is older than the last replayed sample
 	    //will never be played back and gets dropped by default
 	    if(ts < current_ts) 
 	    {
-		status.late_arriving_samples_dropped++;
+		status.samples_dropped_late_arriving++;
 		streams[idx]->status.samples_dropped_late_arriving++;
 		return;
 	    }
@@ -437,8 +441,6 @@ namespace aggregator {
 			    {
 				if(latestDataTime < (*it2)->latestDataTime())
 				    latestDataTime = (*it2)->latestDataTime();
-				
-				
 				
 				if(firstDataTime == base::Time() || firstDataTime > (*it2)->earliestDataTime())
 				    firstDataTime = (*it2)->earliestDataTime();
@@ -522,6 +524,7 @@ namespace aggregator {
 	 */
 	const StreamAlignerStatus& getStatus() const 
 	{
+	    status.time = base::Time::now();
 	    status.current_time = getCurrentTime();
 	    status.latest_time = getLatestTime();
 
