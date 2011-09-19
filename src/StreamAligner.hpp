@@ -98,6 +98,7 @@ namespace aggregator {
 		lastTime = stream.lastTime;
 		buffer = stream.buffer;
 		bufferSize = stream.bufferSize;
+		status = stream.status; 
 	    }
 
 	    void push(const base::Time &ts, const T &data ) 
