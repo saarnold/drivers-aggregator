@@ -55,7 +55,6 @@ namespace aggregator {
 	    Stream( callback_t callback, size_t bufferSize, base::Time period, int priority, const std::string &name )
 		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority)
             {
-                status.buffer_size = bufferSize;
                 status.name = name;
 
                 if (bufferSize > 0)
@@ -65,6 +64,7 @@ namespace aggregator {
                     // initial size, will be reallocated at runtime
                     buffer.set_capacity( 20 );
                 }
+                status.buffer_size = buffer.capacity();
             }
 
 	    virtual ~Stream() {};
