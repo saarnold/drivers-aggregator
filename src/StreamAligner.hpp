@@ -483,6 +483,12 @@ namespace aggregator {
 	    status.late_arriving_samples_dropped = 0;
 	}
 
+	/** Get the time the Estimator will wait for an expected reading on any of the streams.
+	 * This number effectively puts an upper limit to the lag that can be created due to 
+	 * delay or missing values on the channels.
+	 */
+	base::Time getTimeOut() const { return timeout; };
+	
 	/** latency is the time difference between the latest data item that
 	 * has come in, and the latest data item that went out
 	 */
