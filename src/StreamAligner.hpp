@@ -174,7 +174,7 @@ namespace aggregator {
 		buffer.clear();
 		
 		status.latest_sample_time = base::Time();
-		status.latest_stream_time = base::Time();
+		status.latest_data_time = base::Time();
 		status.samples_dropped_buffer_full = 0;
 		status.samples_dropped_late_arriving = 0;
 		status.buffer_fill = 0;
@@ -482,7 +482,7 @@ namespace aggregator {
 	    
 	    status.current_time = base::Time();
 	    status.latest_time = base::Time();
-	    status.late_arriving_samples_dropped = 0;
+	    status.samples_dropped_late_arriving = 0;
 	}
 
 	/** Get the time the Estimator will wait for an expected reading on any of the streams.

@@ -103,7 +103,7 @@ public:
 	if(status.streams.size() != streams.size())
 	    streams.resize(status.streams.size());
 
-	taskName = QString::fromStdString(status.task_name);
+	taskName = QString::fromStdString(status.name);
 	
 	int i = 0;
 	childCount = 0;
@@ -182,14 +182,14 @@ StreamAlignerModel::~StreamAlignerModel()
 
 void StreamAlignerModel::updateData(const aggregator::StreamAlignerStatus& status)
 {
-    if(!taskRepMap.count(status.task_name))
+    if(!taskRepMap.count(status.name))
     {
 	TaskRepresentation *tp = new TaskRepresentation();
-	taskRepMap[status.task_name] = tp;
+	taskRepMap[status.name] = tp;
 	taskRep.push_back(tp);
     }
 
-    taskRepMap[status.task_name]->updateData(status);
+    taskRepMap[status.name]->updateData(status);
     
     //inform rest of the world that we got new data
     emit dataChanged(createIndex(0,0,0), createIndex(taskRep.size(), 5, 0));

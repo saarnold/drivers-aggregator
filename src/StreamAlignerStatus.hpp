@@ -102,7 +102,7 @@ namespace aggregator
 	 */
 	std::vector<StreamStatus> streams;
 	
-	StreamAlignerStatus() : late_arriving_samples_dropped(0)
+	StreamAlignerStatus() : samples_dropped_late_arriving(0)
 	{
 	}	
     };
@@ -111,4 +111,7 @@ namespace aggregator
 
 std::ostream &operator<<(std::ostream &os, const aggregator::StreamAlignerStatus &status);
 std::ostream &operator<<(std::ostream &os, const aggregator::StreamStatus &status);
+std::ostream& counters(std::ostream& os, const aggregator::StreamStatus& status);
+std::ostream& timers(std::ostream& os, const aggregator::StreamStatus& status, base::Time current_time);
+
 #endif

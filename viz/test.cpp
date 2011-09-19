@@ -11,8 +11,8 @@ int main(int argc, char **argv )
     StreamAlignerWidget widget(NULL);
     
     aggregator::StreamAlignerStatus status;
-    status.late_arriving_samples_dropped = 57;    
-    status.task_name = "TestTask";
+    status.samples_dropped_late_arriving = 57;    
+    status.name = "TestTask";
     
     aggregator::StreamStatus sstatus;
     sstatus.active = true;
@@ -30,7 +30,7 @@ int main(int argc, char **argv )
     widget.updateData(status);
 
     status.streams[0].buffer_fill = 2;
-    status.task_name = "TestTask2";
+    status.name = "TestTask2";
     widget.updateData(status);
     
     widget.show();
