@@ -109,16 +109,19 @@ namespace aggregator {
 		
 		lastTime = ts;
 
-                if (bufferSize > 0)
+		if (buffer.full())
                 {
-                    // if the buffer is full, just use the behaviour of the circular
-                    // buffer: discard old data.
-                    status.samples_dropped_buffer_full++;
-                }
-                else if (buffer.full())
-                {
-                    buffer.set_capacity(buffer.capacity() * 2);
-                }
+		    if (bufferSize > 0)
+		    {
+		        // if the buffer is full, just use the behaviour of the circular
+		        // buffer: discard old data.
+		        status.samples_dropped_buffer_full++;
+		    }
+		    else 
+		    {
+		        buffer.set_capacity(buffer.capacity() * 2);
+		    }
+		}
                 buffer.push_back( std::make_pair(ts, data) ); 
 	    }
 
