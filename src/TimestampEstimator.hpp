@@ -2,7 +2,7 @@
 #define AGGREGATOR_TIMESTAMP_ESTIMATOR_HPP
 
 #include <base/time.h>
-#include <boost/circular_buffer.hpp>
+#include <base/circular_buffer.h>
 #include <vector>
 
 #include <aggregator/TimestampEstimatorStatus.hpp>
