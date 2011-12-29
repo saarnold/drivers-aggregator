@@ -96,6 +96,8 @@ BOOST_AUTO_TEST_CASE( remove_stream )
     int s3 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(2) ); 
     int s2 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(2), 1 );
 
+    reader.push( s3, base::Time::fromSeconds(1.0), string("a") ); 
+
     reader.push( s1, base::Time::fromSeconds(1.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(3.0), string("c") ); 
     reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
@@ -128,7 +130,12 @@ BOOST_AUTO_TEST_CASE( drop_test )
 
     reader.push( s1, base::Time::fromSeconds(10.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(11.0), string("b") ); 
-    BOOST_REQUIRE_THROW(reader.push( s1, base::Time::fromSeconds(10.0), string("3") ), std::runtime_error);
+
+    // The behaviour of the streamaligner has changed here.  Out of order
+    // samples don't throw anymore, but will be discarded and counted.
+    //
+    // BOOST_REQUIRE_THROW(reader.push( s1, base::Time::fromSeconds(10.0), string("3") ), std::runtime_error);
+    reader.push( s1, base::Time::fromSeconds(10.0), string("3") );
     
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
@@ -145,7 +152,9 @@ BOOST_AUTO_TEST_CASE( copy_state_test )
 
     reader.push( s1, base::Time::fromSeconds(10.0), string("a") ); 
     reader.push( s1, base::Time::fromSeconds(11.0), string("b") ); 
-    BOOST_REQUIRE_THROW(reader.push( s1, base::Time::fromSeconds(10.0), string("3") ), std::runtime_error);
+    // Behavior has changed here. Streamaligner doesn't throw anymore because
+    // of out of order samples.
+    // BOOST_REQUIRE_THROW(reader.push( s1, base::Time::fromSeconds(10.0), string("3") ), std::runtime_error);
 
     StreamAligner reader2;
     reader2.registerStream<string>( &test_callback, 5, base::Time::fromSeconds(2,0) ); 
