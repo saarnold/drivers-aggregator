@@ -19,7 +19,7 @@ namespace aggregator {
 	{
 	    friend class StreamAligner;
 	    public:
-		StreamBase() {}
+		StreamBase() : active( true ) {}
 		virtual ~StreamBase() {}
 		virtual base::Time pop() = 0;
 		virtual bool hasData() const = 0;
@@ -30,11 +30,16 @@ namespace aggregator {
 		virtual const StreamStatus &getBufferStatus() const = 0;
 		virtual void copyState( const StreamBase& other ) = 0;
 		virtual void clear() = 0;
+
+		bool isActive() const { return active; }
+		void setActive( bool active ) { this->active = active; }
 		
 		friend std::ostream &operator<<(std::ostream &stream, const aggregator::StreamAligner::StreamBase &base);
 		
 	    protected:
 		mutable StreamStatus status;
+		/** marks a stream as active or inactive. All streams are active by default. */
+		bool active;
 	};
 
 	template <class T> class Stream : public StreamBase
@@ -103,6 +108,11 @@ namespace aggregator {
 
 	    void push(const base::Time &ts, const T &data ) 
 	    { 
+		// mark stream as active, since it is receiving data items will
+		// have no effect on an already active stream, but enables
+		// streams which have been marked passive before.
+		setActive( true );
+
 		if(ts < lastTime)
 		{
 		    status.samples_backward_in_time++;
@@ -267,6 +277,53 @@ namespace aggregator {
 	    timeout = t;
 	}
 
+	/** 
+	 * Will disable the stream with the given index.  
+	 *
+	 * All data left in the stream will still be played out, however the
+	 * stream will be ignored for lookahead and timeout calculation. A
+	 * stream, which is disabled can be enabled through the enableStream()
+	 * call, or if new data in this stream arrives.
+	 *
+	 * The functionality is needed for cases where streams might be
+	 * optional, so that the other streams won't be delayed up to the
+	 * maximum time out value.
+	 */
+	void disableStream( int idx )
+	{
+	    if(!streams[idx])
+		throw std::runtime_error("invalid stream index.");		
+
+	    streams[idx]->setActive( false );
+	}
+
+	/** 
+	 * Enables a stream which has been disabled previously. 
+	 *
+	 * All streams are enabled by default. Does not have any effect on
+	 * streams which are already enabled.
+	 */
+	void enableStream( int idx )
+	{
+	    if(!streams[idx])
+		throw std::runtime_error("invalid stream index.");		
+
+	    streams[idx]->setActive( true );
+	}
+
+	/** 
+	 * See if a stream is enabled or disabled.
+	 *
+	 * @return true if the stream is enabled (active)
+	 */
+	bool isStreamActive( int idx ) const 
+	{
+	    if(!streams[idx])
+		throw std::runtime_error("invalid stream index.");		
+
+	    return streams[idx]->isActive();
+	}
+
 	/**
 	 * This function will remove the stream with the given index from the
 	 * stream aligner.
@@ -367,7 +424,7 @@ namespace aggregator {
 		streams[idx]->status.samples_dropped_late_arriving++;
 		return;
 	    }
-	    
+
 	    if( ts > latest_ts )
 		latest_ts = ts;
 	    
@@ -425,7 +482,7 @@ namespace aggregator {
 		    current_ts = (*it)->pop();
 		    return true;
 		}
-		else 
+		else if( (*it)->isActive() )
 		{
 
 		    base::Time latestDataTime;

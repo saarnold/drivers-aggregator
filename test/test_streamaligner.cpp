@@ -48,6 +48,44 @@ BOOST_AUTO_TEST_CASE( order_test )
     lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "" );
 }
 
+// test case for enabling/disabling streams
+BOOST_AUTO_TEST_CASE( stream_enable_test )
+{
+    StreamAligner reader; 
+    reader.setTimeout( base::Time::fromSeconds(2.0) );
+
+    // callback, buffer_size, period_time, (optional) priority
+    int s1 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(1.0) ); 
+    int s2 = reader.registerStream<string>( &test_callback, 4, base::Time::fromSeconds(0), 1 );
+
+    reader.push( s1, base::Time::fromSeconds(1.0), string("a") ); 
+    reader.push( s2, base::Time::fromSeconds(2.0), string("b") ); 
+
+    BOOST_CHECK_EQUAL( reader.isStreamActive(s2), true );
+    reader.disableStream( s2 );
+    BOOST_CHECK_EQUAL( reader.isStreamActive(s2), false );
+
+    // we should still be able to read out the disabled stream
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "a" );
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "b" );
+
+    reader.push( s1, base::Time::fromSeconds(3.0), string("c") ); 
+    
+    // since s2 is disabled, we directly get c, without waiting for
+    // the timout
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "c" );
+
+    // this should reenable s2
+    reader.push( s2, base::Time::fromSeconds(4.0), string("d") ); 
+    BOOST_CHECK_EQUAL( reader.isStreamActive(s2), true );
+    reader.push( s1, base::Time::fromSeconds(5.0), string("e") ); 
+
+    // and we get the s2 sample
+    lastSample = ""; reader.step(); BOOST_CHECK_EQUAL( lastSample, "d" );
+    // but have to wait for the next s1 sample, since timout is not over
+    BOOST_CHECK_EQUAL( reader.step(), false );
+}
+
 BOOST_AUTO_TEST_CASE( clear_test )
 {
     StreamAligner reader; 
