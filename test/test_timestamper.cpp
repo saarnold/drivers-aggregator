@@ -10,7 +10,11 @@
 #include <boost/test/execution_monitor.hpp>  
 
 #include <aggregator/TimestampEstimator.hpp>
+#include <fstream>
+
 using namespace aggregator;
+
+
 
 BOOST_AUTO_TEST_CASE(test_perfect_stream)
 {
@@ -119,5 +123,373 @@ BOOST_AUTO_TEST_CASE(test_drift_noisy_lost_samples)
     std::cerr << "error variance: " << variance << std::endl;
     BOOST_REQUIRE_SMALL(mean,     error_limit);
     BOOST_REQUIRE_SMALL(variance, error_limit);
+}
+
+/**
+ * helper class for unit testing
+ * This class calculates the sample time,
+ * hardware time and real time for a given sample number.
+ * 
+ * It also provides some functionallity to create plottable data
+ * and performs some standard unit testing.
+ * */
+class Tester
+{
+private:
+    std::ofstream debugFile;
+public:
+    //static latency of the sample
+    base::Time sampleLatency;
+    //maximum of random noise added ontop of the static latency
+    base::Time sampleLatencyMaxNoise;
+
+    //maximum noise of hardware timestamp
+    base::Time hwTimeMaxNoise;
+
+    //time of the first sample
+    base::Time baseTime;
+    
+    //real period
+    base::Time realPeriod;
+
+    //the time the sampleTime is off every period
+    base::Time periodDrift;
+
+    //output, calculated by classe
+    base::Time sampleTime;
+    //output, calculated by classe
+    base::Time hwTime;
+    //output, calculated by classe
+    base::Time realTime;
+    
+public:
+    Tester(std::string debugFileName = "")
+    {
+	//init random nummer generator
+	srand48(time(NULL));
+
+	baseTime = base::Time::now();
+	
+#ifndef PLOT_DEBUG
+	debugFileName = "";
+#endif
+	
+	if(!debugFileName.empty())
+	    debugFile.open(debugFileName.c_str(), std::ios::out);
+	
+	if(debugFile.is_open())
+	    debugFile << "#diff times : hwTime, sampleTime, EstimatedTime" << std::endl;
+    }
+
+    void calculateSamples(int nr)
+    {
+	base::Time sampleLatencyNoise = base::Time::fromSeconds(drand48() * sampleLatencyMaxNoise.toSeconds());
+
+	base::Time hwTimeNoise(base::Time::fromSeconds(drand48() * hwTimeMaxNoise.toSeconds()));
+
+	sampleTime = baseTime + realPeriod * nr + periodDrift * nr + sampleLatency + sampleLatencyNoise;
+	
+	hwTime = baseTime + realPeriod * nr + hwTimeNoise;
+
+	realTime = baseTime + realPeriod * nr;
+    }
+    
+    void checkResult(base::Time estimatedTime)
+    {
+	if(debugFile.is_open())
+	    debugFile << (hwTime - realTime).toSeconds() << " " << (sampleTime - realTime).toSeconds() << " " << (estimatedTime - realTime).toSeconds() << std::endl; 
+	else{
+	    //the estimate has to stay in the period
+	    BOOST_REQUIRE_SMALL((estimatedTime - realTime).toSeconds(), realPeriod.toSeconds());
+	    
+	    
+	}
+    }
+    
+};
+
+BOOST_AUTO_TEST_CASE(test_timestamp_before_sample)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_timestamp_before_sample.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+
+	estimator.updateReference(data.hwTime);
+
+	estimatedTime = estimator.update(data.sampleTime);
+	
+	data.checkResult(estimatedTime);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_timestamp_after_sample)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_timestamp_after_sample.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+	
+	estimatedTime = estimator.update(data.sampleTime);
+	
+	estimator.updateReference(data.hwTime);
+
+	data.checkResult(estimatedTime);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_timestamp_before_sample_drift)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_timestamp_before_sample_drift.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    //100 us
+    data.periodDrift = base::Time::fromSeconds(0.0001);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+
+	estimator.updateReference(data.hwTime);
+
+	estimatedTime = estimator.update(data.sampleTime);
+	
+	data.checkResult(estimatedTime);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_timestamp_after_sample_drift)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_timestamp_after_sample_drift.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    //100 us
+    data.periodDrift = base::Time::fromSeconds(0.0001);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+	
+	estimatedTime = estimator.update(data.sampleTime);
+	
+	estimator.updateReference(data.hwTime);
+
+	data.checkResult(estimatedTime);
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE(test_lost_samples_hw_timestamp_after_sample)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_lost_samples_hw_timestamp_after_sample.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+	
+	if(i % 34 != 0)
+	{
+	    estimatedTime = estimator.update(data.sampleTime);
+	}
+	
+	estimator.updateReference(data.hwTime);
+
+	//only check if a estimate was calculated
+	if(i % 34 != 0)
+	{
+	    data.checkResult(estimatedTime);
+	}	
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_lost_samples_hw_timestamp_before_sample)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_lost_samples_hw_timestamp_before_sample.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+
+	estimator.updateReference(data.hwTime);
+
+	if(i % 34 != 0)
+	{
+	    estimatedTime = estimator.update(data.sampleTime);
+	}
+	
+	//only check if a estimate was calculated
+	if(i % 34 != 0)
+	{
+	    data.checkResult(estimatedTime);
+	}	
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_lost_samples_hw_timestamp_after_sample_drift)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_lost_samples_hw_timestamp_after_sample_drift.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    //100 us
+    data.periodDrift = base::Time::fromSeconds(0.0001);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+	
+	if(i % 34 != 0)
+	{
+	    estimatedTime = estimator.update(data.sampleTime);
+	}
+	
+	estimator.updateReference(data.hwTime);
+
+	//only check if a estimate was calculated
+	if(i % 34 != 0)
+	{
+	    data.checkResult(estimatedTime);
+	}	
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_lost_samples_hw_timestamp_before_sample_drift)
+{
+    //this test case tries to emulate the values of an hokuyo laser scanner
+    static const int COUNT = 10000;
+
+    Tester data("test_lost_samples_hw_timestamp_before_sample_drift.csv");
+    data.realPeriod = base::Time::fromSeconds(0.025);
+    //100 us
+    data.periodDrift = base::Time::fromSeconds(0.0001);
+    
+    data.sampleLatency = base::Time::fromSeconds(0.02);
+    data.sampleLatencyMaxNoise = base::Time::fromSeconds(0.005);
+    
+    data.hwTimeMaxNoise = base::Time::fromMicroseconds(50);
+    
+    //estimator for testing
+    TimestampEstimator estimator(base::Time::fromSeconds(20),
+	base::Time::fromSeconds(0.025));
+    
+    for (int i = 0; i < COUNT; ++i)
+    {
+	data.calculateSamples(i);
+
+	base::Time estimatedTime;
+
+	estimator.updateReference(data.hwTime);
+
+	if(i % 34 != 0)
+	{
+	    estimatedTime = estimator.update(data.sampleTime);
+	}
+	
+	//only check if a estimate was calculated
+	if(i % 34 != 0)
+	{
+	    data.checkResult(estimatedTime);
+	}	
+    }
 }
 
