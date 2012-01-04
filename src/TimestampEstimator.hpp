@@ -17,40 +17,77 @@ namespace aggregator
      */
     class TimestampEstimator
     {
+        /** To avoid loss of precision while manipulating doubles, we move all
+         * times to be relative to this time
+         *
+         * It gets added back when returning from update() and updateReference()
+         */
+        base::Time m_zero;
+
         /** The requested estimation window */
         double m_window;
 
-        /** The currently stored timestamps. values < 0 are placeholders for
-	 *  missing samples
+        /** Set of uncorrected timestamps that is at most m_window large.
+         * Negative values are placeholders for missing samples
 	 */
         boost::circular_buffer<double> m_samples;
 
-        /** The initial time given last to update(). It is only used in
-         * the value returned by getStatus()
+        /** The last estimated timestamp
+         *
+         * The current best estimate for the next sample is always m_last +
+         * getPeriod()
          */
-        base::Time m_last_update;
+        double m_last;
 
-        /** The last estimated timestamp */
-        long double m_last;
+        /** During the estimation, this vector keeps track of consecutive
+         * samples where the difference between the estimated and provided
+         * timestamps is greater than a period
+         *
+         * When more than m_lost_threshold of such samples are received, we
+         * assume that we lost samples
+         */
+        std::vector<long> m_lost;
 
         /** if m_lost.size() is greater than m_lost_threshold, we consider
 	 * that we lost some samples
          */
         int m_lost_threshold;
 
-        /** The number of successive samples put into update() where we could
-	 * have lost another sample */
-	std::vector<int> m_lost;
-
         /** The total estimated count of lost samples so far */
         int m_lost_total;
 
         double getPeriodInternal() const;
 
-        double m_min_offset;
-        double m_min_offset_reset;
+        /** During the estimation, we keep track of when we encounter an actual
+         * sample that matches the current estimated base time.
+         *
+         * If we don't encounter one in a whole estimation window, we assume
+         * that something is wrong and that we should reset it completely
+         */
+        double m_base_time_reset;
+
+        /** The latency, i.e. the fixed (or, more accurately, slow drifting)
+         * difference between the incoming timestamps and the actual timestamps
+         *
+         * An apriori value for it can be provided to the constructor, and it
+         * will be updated if updateReference is used (i.e. external timestamps
+         * are available).
+         *
+         * It is used as:
+         *
+         * <code>
+         * actual_timestamp = incoming_timestamp - latency
+         * </code>
+         */
 	double m_latency;
-	double m_min_latency;
+
+        /** Apriori latency provided to the estimator's constructor
+         *
+         * Zero if none is provided
+         *
+         * See m_latency for explanations
+         */
+	double m_initial_latency;
 
         /** Maximum value taken by the jitter, in seconds */
         double m_max_jitter;
@@ -152,9 +189,9 @@ namespace aggregator
          */
         base::Time getPeriod() const;
 
-	/** Shortens the sample list to account for the current timestamp
-	 *  time. Calling this is strongly recommended if there is a chance
-	 *  of only calling updateLoss for long stretches of time
+        /** Shortens the sample list so that the addition of \c time would not
+         * overflow the window. Calling this is strongly recommended if there is
+         * a chance of only calling updateLoss for long stretches of time
 	 */
         void shortenSampleList(base::Time time);
 

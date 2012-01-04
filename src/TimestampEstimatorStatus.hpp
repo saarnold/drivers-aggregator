@@ -30,6 +30,8 @@ namespace aggregator {
         TimestampEstimatorStatus()
             : lost_samples(0) {}
     };
+
+    std::ostream& operator << (std::ostream& stream, TimestampEstimatorStatus const& status);
 }
 
 #endif

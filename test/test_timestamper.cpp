@@ -29,7 +29,8 @@ BOOST_AUTO_TEST_CASE(test_perfect_stream)
         BOOST_REQUIRE_EQUAL(0, estimator.getLostSampleCount());
     }
 
-    BOOST_REQUIRE_CLOSE(step.toSeconds(), estimator.getPeriod().toSeconds(), 0.0000001);
+    std::cout << std::setprecision(100) << step.toSeconds() << std::endl;
+    BOOST_REQUIRE_CLOSE(step.toSeconds(), estimator.getPeriod().toSeconds(), 1e-6);
 }
 
 BOOST_AUTO_TEST_CASE(test_noisy_latency)
@@ -117,10 +118,6 @@ BOOST_AUTO_TEST_CASE(test_drift_noisy_lost_samples)
 
     static const double error_limit = NOISE + drift.toSeconds() * 50;
 
-    std::cerr << "acceptable error: " << error_limit << " for period of " << step.toSeconds() << " and drift of " << drift.toSeconds() << std::endl;
-    std::cerr << "losing " << total_skip << " samples" << std::endl;
-    std::cerr << "error mean: " << mean << std::endl;
-    std::cerr << "error variance: " << variance << std::endl;
     BOOST_REQUIRE_SMALL(mean,     error_limit);
     BOOST_REQUIRE_SMALL(variance, error_limit);
 }
