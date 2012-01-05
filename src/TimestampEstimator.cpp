@@ -191,6 +191,20 @@ base::Time TimestampEstimator::update(base::Time time)
     // Remove values from m_samples that are outside the required window
     shortenSampleList(current);
 
+    // If we have an initial period, fill m_samples using it
+    if (m_samples.empty())
+    {
+        if (m_initial_period > 0)
+        {
+            for (int n = 1; !m_samples.full(); ++n)
+                m_samples.push_front(current - m_initial_period * n);
+        }
+        m_last = current;
+        m_base_time_reset = m_last;
+        m_samples.push_back(current);
+        return base::Time::fromSeconds(m_last - m_latency) + m_zero;
+    }
+
     // If we have an initial period, m_samples has been sized already. Since
     // push_back will override the beginning of the circular buffer, there is
     // nothing to do if the buffer is full
@@ -215,12 +229,9 @@ base::Time TimestampEstimator::update(base::Time time)
     // Add the new input to the sample set
     m_samples.push_back(current);
 
+    // Not enough samples, just return the input value.
     if (!haveEstimate())
-    {
-        m_last = current;
-        m_base_time_reset = m_last;
         return base::Time::fromSeconds(m_last - m_latency) + m_zero;
-    }
 
     // Recompute the period
     double period = getPeriodInternal();
