@@ -71,6 +71,7 @@ void TimestampEstimator::internalReset(double window,
 				       double initial_latency,
 				       int lost_threshold)
 {
+    m_got_full_window = false;
     m_zero = base::Time();
     m_window = window;
     m_lost_threshold = lost_threshold;
@@ -96,20 +97,44 @@ base::Time TimestampEstimator::getPeriod() const
 { return base::Time::fromSeconds(getPeriodInternal()); }
 double TimestampEstimator::getPeriodInternal() const
 {
-    int count = m_samples.size();
-    boost::circular_buffer<double>::const_reverse_iterator b;
-    //ignore lost samples(unset value) at the end of m_samples
-    for(b = m_samples.rbegin();	base::isUnset(*b) && b != m_samples.rend(); b++, count--)
-    {}
+    if (!m_got_full_window && m_initial_period)
+    {
+        // The main problem with using an initial period is that the estimator
+        // gets lost if the period is under-estimated.
+        //
+        // Other ways to handle the initial period:
+        //  * fill the sample set using the first sample and the period. In the
+        //    end, it will be equal to this solution plus
+        //    ((jitter_on_last_sample - jitter_on_very_first_sample) / window_size_in_periods)
+        //    Since the first sample, in this case, does not change, it skews
+        //    the period estimate for a complete first window
+        //  * compute the period using latest - (m_last - m_initial_period *
+        //    window_size_in_period). It is identical to this solution plus
+        //    jitter_on_current_sample / window_size_in_periods. This has a
+        //    randomness, but does not fix the behaviour if the initial period
+        //    is under-estimated.
+        //
+        // So, go for the simple solution and document for the user that the
+        // initial period should be very slightly over-estimated (if possible).
+        return m_initial_period;
+    }
+    else
+    {
+        int count = m_samples.size();
+        boost::circular_buffer<double>::const_reverse_iterator latest_it;
+        //ignore lost samples(unset value) at the end of m_samples
+        for(latest_it = m_samples.rbegin();
+                base::isUnset(*latest_it) && latest_it != m_samples.rend();
+                latest_it++, count--)
+        {}
+        double latest = *latest_it;
 
-    if (count <= 1)
-        throw std::logic_error("getPeriodInternal() called with less than 2 valid samples");
+        if (count <= 1)
+            throw std::logic_error("getPeriodInternal() called with no initial period and less than 2 valid samples");
 
-    // std::cout << "period: " << (*b - m_samples.front()) / (count - 1) << std::endl;
-    // std::cout << "period_to_s: " << std::setprecision(10) << base::Time::fromSeconds((*b - m_samples.front()) / (count - 1)).toSeconds() << std::endl;
-    // std::cout << "period_to_us: " << base::Time::fromSeconds((*b - m_samples.front()) / (count - 1)).toMicroseconds() << std::endl;
-
-    return (*b - m_samples.front()) / (count - 1);
+        double earliest = m_samples.front();
+        return (latest - earliest) / (count - 1);
+    }
 }
 
 int TimestampEstimator::getLostSampleCount() const
@@ -126,7 +151,11 @@ void TimestampEstimator::shortenSampleList(double current)
         boost::circular_buffer<double>::iterator end = m_samples.begin();
 	double min_time = current - m_window;
 	while(end != m_samples.end() && (base::isUnset(*end) || *end < min_time))
+        {
+            if (!base::isUnset(*end))
+                m_got_full_window = true;
 	    end++;
+        }
 
         if (end == m_samples.end())
         {
@@ -197,11 +226,6 @@ base::Time TimestampEstimator::update(base::Time time)
     // If we have an initial period, fill m_samples using it
     if (m_samples.empty())
     {
-        if (m_initial_period > 0)
-        {
-            for (int n = 1; !m_samples.full(); ++n)
-                m_samples.push_front(current - m_initial_period * n);
-        }
         m_last = current;
         m_base_time_reset = m_last;
         m_samples.push_back(current);
@@ -327,7 +351,10 @@ void TimestampEstimator::updateReference(base::Time ts)
 
 bool TimestampEstimator::haveEstimate() const
 {
-    return m_samples.size() - m_missing_samples >= 2;
+    if (m_initial_period)
+        return (m_samples.size() - m_missing_samples) >= 1;
+    else
+        return (m_samples.size() - m_missing_samples) >= 2;
 }
 
 base::Time TimestampEstimator::update(base::Time time, int64_t index)

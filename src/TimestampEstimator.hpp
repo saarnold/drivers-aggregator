@@ -56,6 +56,12 @@ namespace aggregator
         /** The total estimated count of lost samples so far */
         int m_lost_total;
 
+        /** Set to true the first time the window got full. It is used when an
+         * initial period is provided, to determine whether getPeriodInternal
+         * should use the initial period or only raw data
+         */
+        bool m_got_full_window;
+
         double getPeriodInternal() const;
 
         /** During the estimation, we keep track of when we encounter an actual
