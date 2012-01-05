@@ -128,7 +128,6 @@ void TimestampEstimator::shortenSampleList(double current)
         if (end == m_samples.end())
         {
             m_samples.clear();
-            m_samples.clear();
             m_missing_samples = 0;
             return;
         }
