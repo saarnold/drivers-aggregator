@@ -179,7 +179,12 @@ public:
 
     void calculateSamples(int nr)
     {
-	base::Time sampleLatencyNoise = base::Time::fromSeconds(drand48() * sampleLatencyMaxNoise.toSeconds());
+        base::Time sampleLatencyMaxNoise;
+        if (nr > 0)
+            sampleLatencyMaxNoise = this->sampleLatencyMaxNoise;
+        else
+            sampleLatencyMaxNoise = realPeriod * 0.05;
+        base::Time sampleLatencyNoise = base::Time::fromSeconds(drand48() * sampleLatencyMaxNoise.toSeconds());
 
 	base::Time hwTimeNoise(base::Time::fromSeconds(drand48() * hwTimeMaxNoise.toSeconds()));
 
