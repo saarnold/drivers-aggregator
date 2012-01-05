@@ -118,11 +118,18 @@ void TimestampEstimator::shortenSampleList(base::Time time)
 	double period = getPeriodInternal();
 
 	//scan forward until we hit the window size
-        boost::circular_buffer<double>::iterator end;
-	end = m_samples.begin();
+        boost::circular_buffer<double>::iterator end = m_samples.begin();
 	double min_time = current - m_window;
 	while(end != m_samples.end() && (base::isUnset(*end) || *end < min_time))
 	    end++;
+
+        if (end == m_samples.end())
+        {
+            m_samples.clear();
+            m_samples.clear();
+            m_missing_samples = 0;
+            return;
+        }
 
         boost::circular_buffer<double>::iterator window_begin = end;
 
