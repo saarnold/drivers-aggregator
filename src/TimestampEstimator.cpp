@@ -202,28 +202,25 @@ base::Time TimestampEstimator::update(base::Time time)
         return base::Time::fromSeconds(m_last - m_latency) + m_zero;
     }
 
-    // If we have an initial period, m_samples has been sized already.
+    // If we have an initial period, m_samples has been sized already. Since
+    // push_back will override the beginning of the circular buffer, there is
+    // nothing to do if the buffer is full
     //
-    // Otherwise, we have to dynamically update its capacity using the current
-    // period estimate.
-    if (m_samples.full())
+    // If we don't have an initial period, however, we have to dynamically
+    // update its capacity using the current period estimate.
+    if (m_samples.full() && !m_initial_period)
     {
-        if (!m_initial_period)
+        if (haveEstimate())
         {
-            if (haveEstimate())
-            {
-                double period = getPeriodInternal();
-                size_t new_capacity = 10 + (m_window + period) / period;
-                if (m_samples.capacity() < new_capacity)
-                    m_samples.set_capacity(new_capacity);
-            }
-            else
-            {
-                m_samples.set_capacity(20 + m_samples.capacity());
-            }
+            double period = getPeriodInternal();
+            size_t new_capacity = 10 + (m_window + period) / period;
+            if (m_samples.capacity() < new_capacity)
+                m_samples.set_capacity(new_capacity);
         }
         else
-            m_samples.pop_front();
+        {
+            m_samples.set_capacity(20 + m_samples.capacity());
+        }
     }
 
     // Add the new input to the sample set
