@@ -355,18 +355,17 @@ base::Time TimestampEstimator::updateLoss()
 
 void TimestampEstimator::updateReference(base::Time ts)
 {
-    if (!haveEstimate())
+    if (!m_got_full_window)
 	return;
 
     double period = getPeriodInternal();
     double hw_time   = (ts - m_zero).toSeconds();
     double est_time = m_last - m_latency;
-    int n = round((est_time - hw_time)/period);
+    int n = floor((est_time + period * 0.1 - hw_time)/period);
     double diff = est_time - (hw_time + n * period);
 
     m_latency += diff;
     m_last_reference = ts;
-    m_last    += diff;
 }
 
 bool TimestampEstimator::haveEstimate() const
