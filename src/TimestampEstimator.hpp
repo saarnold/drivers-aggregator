@@ -32,10 +32,10 @@ namespace aggregator
 	 */
         boost::circular_buffer<double> m_samples;
 
-        /** The last estimated timestamp
+        /** The last estimated timestamp, without latency
          *
-         * The current best estimate for the next sample is always m_last +
-         * getPeriod()
+         * The current best estimate for the next sample, with no new
+         * information, is always m_last + getPeriod() - m_latency
          */
         double m_last;
 
@@ -193,7 +193,7 @@ namespace aggregator
          * overflow the window. Calling this is strongly recommended if there is
          * a chance of only calling updateLoss for long stretches of time
 	 */
-        void shortenSampleList(base::Time time);
+        void shortenSampleList(double current);
 
         /** The total estimated count of lost samples so far */
         int getLostSampleCount() const;

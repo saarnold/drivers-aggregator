@@ -108,10 +108,8 @@ double TimestampEstimator::getPeriodInternal() const
 int TimestampEstimator::getLostSampleCount() const
 { return m_lost_total; }
 
-void TimestampEstimator::shortenSampleList(base::Time time)
+void TimestampEstimator::shortenSampleList(double current)
 {
-    double current = time.toSeconds();
-
     if (haveEstimate())
     {
 	// Compute the period up to now for later reuse
@@ -184,13 +182,11 @@ base::Time TimestampEstimator::update(base::Time time)
     if (m_zero.isNull())
         m_zero = time;
 
-    time = time - m_zero;
+    // We use doubles internally. Convert to it.
+    double current = (time - m_zero).toSeconds();
 
     // Remove values from m_samples that are outside the required window
-    shortenSampleList(time);
-
-    // We use doubles internally. Convert to it.
-    double current = time.toSeconds() - m_latency;
+    shortenSampleList(current);
 
     // If we have an initial period, fill m_samples using it
     if (m_samples.empty())
@@ -199,17 +195,11 @@ base::Time TimestampEstimator::update(base::Time time)
         {
             for (int n = 1; !m_samples.full(); ++n)
                 m_samples.push_front(current - m_initial_period * n);
-            m_samples.pop_front();
-            m_last = current - m_initial_period;
-            m_base_time_reset = current;
         }
-        else
-        {
-            m_last = current;
-            m_base_time_reset = current;
-            m_samples.push_back(current);
-            return base::Time::fromSeconds(static_cast<double>(m_last)) + m_zero;
-        }
+        m_last = current;
+        m_base_time_reset = m_last;
+        m_samples.push_back(current);
+        return base::Time::fromSeconds(m_last - m_latency) + m_zero;
     }
 
     // If we have an initial period, m_samples has been sized already.
@@ -241,7 +231,7 @@ base::Time TimestampEstimator::update(base::Time time)
 
     // Not enough samples, just return the input value.
     if (!haveEstimate())
-	return time;
+        return base::Time::fromSeconds(m_last - m_latency) + m_zero;
 
     // Recompute the period
     double period = getPeriodInternal();
@@ -302,7 +292,7 @@ base::Time TimestampEstimator::update(base::Time time)
         m_last = m_last + period;
 
     m_max_jitter = std::max(static_cast<double>(m_max_jitter), current - m_last);
-    return base::Time::fromSeconds((double)m_last) + m_zero;
+    return base::Time::fromSeconds(m_last - m_latency) + m_zero;
 }
 
 base::Time TimestampEstimator::updateLoss()
@@ -314,7 +304,7 @@ base::Time TimestampEstimator::updateLoss()
 	double period = getPeriodInternal();
 	m_last = m_last + period;
     }
-    return base::Time::fromSeconds((double)m_last);
+    return base::Time::fromSeconds(m_last - m_latency) + m_zero;
 }
 
 void TimestampEstimator::updateReference(base::Time ts)
@@ -323,12 +313,13 @@ void TimestampEstimator::updateReference(base::Time ts)
 	return;
 
     double period = getPeriodInternal();
-    double time   = (ts - m_zero).toSeconds();
-    int n = round((m_last - time)/period);
-    double diff = time - (m_last - n * period);
+    double hw_time   = (ts - m_zero).toSeconds();
+    double est_time = m_last - m_latency;
+    int n = round((est_time - hw_time)/period);
+    double diff = est_time - (hw_time + n * period);
 
     m_latency += diff;
-    m_last += diff;
+    m_last    += diff;
 }
 
 bool TimestampEstimator::haveEstimate() const
@@ -368,7 +359,7 @@ base::Time TimestampEstimator::getMaxJitter() const
 TimestampEstimatorStatus TimestampEstimator::getStatus() const
 {
     TimestampEstimatorStatus status;
-    status.stamp = base::Time::fromSeconds(static_cast<double>(m_last));
+    status.stamp = base::Time::fromSeconds(m_last - m_latency) + m_zero;
     status.period = getPeriod();
     status.latency = getLatency();
     status.max_jitter = getMaxJitter();
