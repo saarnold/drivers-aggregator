@@ -79,6 +79,7 @@ void TimestampEstimator::internalReset(double window,
     m_lost.clear();
     m_lost_total = 0;
     m_base_time_reset = 0;
+    m_last_reference = base::Time();
     m_max_jitter = 0;
     m_latency = initial_latency;
     m_initial_latency = initial_latency;
@@ -227,8 +228,7 @@ base::Time TimestampEstimator::update(base::Time time)
     // If we have an initial period, fill m_samples using it
     if (m_samples.empty())
     {
-        m_last = current;
-        m_base_time_reset = m_last;
+        resetBaseTime(current, current);
         m_samples.push_back(current);
         return base::Time::fromSeconds(m_last - m_latency) + m_zero;
     }
@@ -284,8 +284,7 @@ base::Time TimestampEstimator::update(base::Time time)
             }
         }
 
-        m_last = base_time - period;
-        m_base_time_reset = base_time_reset;
+        resetBaseTime(base_time - period, base_time_reset);
     }
 
     // Check for lost samples
@@ -326,15 +325,20 @@ base::Time TimestampEstimator::update(base::Time time)
     // To avoid resetting the base time unnecessarily, consider that we
     // "reset" it as soon as we are within 1e-4 of it.
     if (m_last + period > current - period * 1e-4)
-    {
-        m_last = current;
-        m_base_time_reset = current;
-    }
+        resetBaseTime(current, current);
     else
         m_last = m_last + period;
 
     m_max_jitter = std::max(static_cast<double>(m_max_jitter), current - m_last);
     return base::Time::fromSeconds(m_last - m_latency) + m_zero;
+}
+
+void TimestampEstimator::resetBaseTime(double new_value, double reset_time)
+{
+    m_last = new_value;
+    m_base_time_reset = reset_time;
+    if (!m_last_reference.isNull())
+        updateReference(m_last_reference);
 }
 
 base::Time TimestampEstimator::updateLoss()
@@ -361,6 +365,7 @@ void TimestampEstimator::updateReference(base::Time ts)
     double diff = est_time - (hw_time + n * period);
 
     m_latency += diff;
+    m_last_reference = ts;
     m_last    += diff;
 }
 
