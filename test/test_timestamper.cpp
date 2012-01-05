@@ -263,7 +263,11 @@ void test_timestamper_impl(int hardware_order, bool has_initial_period, bool has
 
         if (i < init)
             continue;
-	data.checkResult(estimatedTime, estimator.getPeriod());
+
+        base::Time period;
+        if (estimator.haveEstimate())
+            period = estimator.getPeriod();
+	data.checkResult(estimatedTime, period);
     }
 }
 

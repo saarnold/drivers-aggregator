@@ -102,6 +102,9 @@ double TimestampEstimator::getPeriodInternal() const
     for(b = m_samples.rbegin();	base::isUnset(*b) && b != m_samples.rend(); b++, count--)
     {}
 
+    if (count <= 1)
+        throw std::logic_error("getPeriodInternal() called with less than 2 valid samples");
+
     // std::cout << "period: " << (*b - m_samples.front()) / (count - 1) << std::endl;
     // std::cout << "period_to_s: " << std::setprecision(10) << base::Time::fromSeconds((*b - m_samples.front()) / (count - 1)).toSeconds() << std::endl;
     // std::cout << "period_to_us: " << base::Time::fromSeconds((*b - m_samples.front()) / (count - 1)).toMicroseconds() << std::endl;
