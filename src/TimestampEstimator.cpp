@@ -6,6 +6,7 @@
 #include <base/float.h>
 
 using namespace aggregator;
+using boost::circular_buffer;
 
 TimestampEstimator::TimestampEstimator(base::Time window,
 				       base::Time initial_period,
@@ -121,7 +122,7 @@ double TimestampEstimator::getPeriodInternal() const
     else
     {
         int count = m_samples.size();
-        boost::circular_buffer<double>::const_reverse_iterator latest_it;
+        circular_buffer<double>::const_reverse_iterator latest_it;
         //ignore lost samples(unset value) at the end of m_samples
         for(latest_it = m_samples.rbegin();
                 base::isUnset(*latest_it) && latest_it != m_samples.rend();
@@ -148,7 +149,7 @@ void TimestampEstimator::shortenSampleList(double current)
 	double period = getPeriodInternal();
 
 	//scan forward until we hit the window size
-        boost::circular_buffer<double>::iterator end = m_samples.begin();
+        circular_buffer<double>::iterator end = m_samples.begin();
 	double min_time = current - m_window;
 	while(end != m_samples.end() && (base::isUnset(*end) || *end < min_time))
         {
@@ -164,7 +165,7 @@ void TimestampEstimator::shortenSampleList(double current)
             return;
         }
 
-        boost::circular_buffer<double>::iterator window_begin = end;
+        circular_buffer<double>::iterator window_begin = end;
 
 	//scan backward until we find a gap that is at least period sized.
 	//that should be the last sample from a burst, giving better
@@ -172,7 +173,7 @@ void TimestampEstimator::shortenSampleList(double current)
         //
         //The 0.9 factor on the period is here to allow a bit of jitter.
         //Otherwise, we might end up keeping too much data for too long
-        boost::circular_buffer<double>::iterator last_good = end;
+        circular_buffer<double>::iterator last_good = end;
 	int smp_count = 0;
 	while(end != m_samples.begin())
 	{
@@ -196,7 +197,7 @@ void TimestampEstimator::shortenSampleList(double current)
 	//scan forward again as long as we find lost samples
 	for(;end != m_samples.end() && base::isUnset(*end); end++) {}
 
-        boost::circular_buffer<double>::iterator it;
+        circular_buffer<double>::iterator it;
 	for(it = m_samples.begin(); it != end; it++) {
 	    if (base::isUnset(*it))
 		m_missing_samples--;
@@ -269,8 +270,22 @@ base::Time TimestampEstimator::update(base::Time time)
     // In principle, it should not happen
     if (current - m_base_time_reset > m_window)
     {
-        m_last = current;
-        m_base_time_reset = current;
+        double base_time = current;
+        double base_time_reset = current;
+        int base_count = 0;
+
+        circular_buffer<double>::const_reverse_iterator it = m_samples.rbegin();
+        for (++it, ++base_count; it != m_samples.rend(); ++it, ++base_count)
+        {
+            if (!base::isUnset(*it) && (*it < base_time - base_count * period))
+            {
+                base_time = *it + base_count * period;
+                base_time_reset = *it;
+            }
+        }
+
+        m_last = base_time - period;
+        m_base_time_reset = base_time_reset;
     }
 
     // Check for lost samples

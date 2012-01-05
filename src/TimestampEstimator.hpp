@@ -110,6 +110,14 @@ namespace aggregator
 	/** m_last_index is initialized */
 	bool m_have_last_index;
 
+        /** The last time given to updateReference */
+        base::Time m_last_reference;
+
+        /** Set the base time to the given value. reset_time is used in update()
+         * to trigger new updates when necessary
+         */
+        void resetBaseTime(double new_value, double reset_time);
+
         /** Internal helper for the reset() methods, that take double directly.
          * This avoid converting the internal parameters to base::Time and then
          * to double again.
