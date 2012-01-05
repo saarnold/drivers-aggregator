@@ -3,8 +3,6 @@
 #define BOOST_TEST_MODULE "test_timestamper"
 #define BOOST_AUTO_TEST_MAIN
 
-// #define PLOT_DEBUG
-
 #include <iostream>
 #include <numeric>
 
@@ -168,15 +166,15 @@ public:
 
 	baseTime = base::Time::now();
 	
-#ifndef PLOT_DEBUG
-	debugFileName = "";
-#endif
-	
 	if(!debugFileName.empty())
 	    debugFile.open(debugFileName.c_str(), std::ios::out);
 	
 	if(debugFile.is_open())
-	    debugFile << "#diff times : hwTime, sampleTime, EstimatedTime" << std::endl;
+        {
+            debugFile << std::setprecision(5) << std::endl;
+	    debugFile << "# (hardware-real) (sample-real) (estimate-real) estimated_period" << std::endl;
+        }
+
     }
 
     void calculateSamples(int nr)
@@ -192,16 +190,20 @@ public:
 	realTime = baseTime + realPeriod * nr;
     }
     
-    void checkResult(base::Time estimatedTime)
+    void checkResult(base::Time estimatedTime, base::Time estimatedPeriod)
     {
+        static base::Time lastEstimatedTime = estimatedTime;
+
 	if(debugFile.is_open())
         {
-	    debugFile << (hwTime - realTime).toSeconds() << " " << (sampleTime - realTime).toSeconds() << " " << (estimatedTime - realTime).toSeconds() << std::endl; 
+	    debugFile << (hwTime - realTime).toSeconds() / realPeriod.toSeconds()
+                << " " << (sampleTime - realTime).toSeconds() / realPeriod.toSeconds()
+                << " " << (estimatedTime - realTime).toSeconds() / realPeriod.toSeconds()
+                << " " << (estimatedPeriod - realPeriod).toSeconds() / realPeriod.toSeconds()
+                << " " << (estimatedTime - lastEstimatedTime).toSeconds() / realPeriod.toSeconds() << std::endl; 
         }
-	else{
-	    //the estimate has to stay in the period
-	    BOOST_REQUIRE_SMALL((estimatedTime - realTime).toSeconds(), realPeriod.toSeconds() / 10);
-	}
+        lastEstimatedTime = estimatedTime;
+        BOOST_CHECK_SMALL((estimatedTime - realTime).toSeconds(), realPeriod.toSeconds() / 10);
     }
 };
 
@@ -224,6 +226,7 @@ void test_timestamper_impl(int hardware_order, bool has_initial_period, bool has
         csv_filename << "__init" << init;
     if (lost_rate)
         csv_filename << "__loss";
+    csv_filename << ".csv";
 
     Tester data(csv_filename.str());
     data.realPeriod = base::Time::fromSeconds(0.025);
@@ -260,7 +263,7 @@ void test_timestamper_impl(int hardware_order, bool has_initial_period, bool has
 
         if (i < init)
             continue;
-	data.checkResult(estimatedTime);
+	data.checkResult(estimatedTime, estimator.getPeriod());
     }
 }
 
