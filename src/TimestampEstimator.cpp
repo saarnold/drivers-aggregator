@@ -131,10 +131,10 @@ double TimestampEstimator::getPeriodInternal() const
                 latest_it++, count--)
         {}
         double latest = *latest_it;
-
         if (count <= 1)
             throw std::logic_error("getPeriodInternal() called with no initial period and less than 2 valid samples");
 
+        // m_samples.front() is valid as shortenSampleList makes sure that it is
         double earliest = m_samples.front();
         return (latest - earliest) / (count - 1);
     }
@@ -259,6 +259,9 @@ base::Time TimestampEstimator::update(base::Time time)
     m_samples.push_back(current);
 
     // Not enough samples, just return the input value.
+    //
+    // This can happen if we have a sample set full of lost samples. Not very
+    // likely, but no impossible either
     if (!haveEstimate())
         return base::Time::fromSeconds(m_last - m_latency) + m_zero;
 
@@ -276,6 +279,12 @@ base::Time TimestampEstimator::update(base::Time time)
         int base_count = 0;
 
         circular_buffer<double>::const_reverse_iterator it = m_samples.rbegin();
+        // This code works as
+        //      *it < base_time - base_count * period,
+        // means that
+        //      *it + period > base_time - (base_count - 1) * period
+        // i.e. the sample at *it has a lower jitter than the one at base_time
+        // and we therefore should use it as the new base time
         for (++it, ++base_count; it != m_samples.rend(); ++it, ++base_count)
         {
             if (!base::isUnset(*it) && (*it < base_time - base_count * period))
@@ -305,7 +314,7 @@ base::Time TimestampEstimator::update(base::Time time)
         int sample_distance = (current - m_last) / period;
         if (sample_distance > 1 && m_have_last_index)
         {
-            LOG_WARN_S << "detected lost samples even though some sample indexes were provided";
+            LOG_WARN_S << "detected lost samples even though some sample indexes were provided. You should probably set the lost threshold to INT_MAX";
             m_lost.push_back(sample_distance - 1);
         }
         else
