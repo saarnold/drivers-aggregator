@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <base/float.h>
+#include <base/logging.h>
 
 using namespace aggregator;
 using boost::circular_buffer;
@@ -302,8 +303,11 @@ base::Time TimestampEstimator::update(base::Time time)
     if (m_lost_threshold != INT_MAX)
     {
         int sample_distance = (current - m_last) / period;
-        if (sample_distance > 1)
+        if (sample_distance > 1 && m_have_last_index)
+        {
+            LOG_WARN_S << "detected lost samples even though some sample indexes were provided";
             m_lost.push_back(sample_distance - 1);
+        }
         else
             m_lost.clear();
 
