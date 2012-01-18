@@ -85,8 +85,12 @@ void TimestampEstimator::internalReset(double window,
     m_initial_latency = initial_latency;
     m_initial_period = initial_period;
     m_missing_samples = 0;
+    m_missing_samples_total = 0;
     m_last_index = 0;
     m_have_last_index = false;
+    m_expected_losses = 0;
+    m_rejected_expected_losses = 0;
+    m_expected_loss_timeout = 0;
 
     m_samples.clear();
     if (m_initial_period > 0)
@@ -156,6 +160,7 @@ void TimestampEstimator::dumpInternalState() const
     std::cout << m_samples.size() << " samples in buffer" << std::endl;
     std::cout << "  capacity=" << m_samples.capacity() << std::endl;
     std::cout << "  m_missing_samples=" << m_missing_samples << std::endl;
+    std::cout << "  m_missing_samples_total=" << m_missing_samples_total << std::endl;
     circular_buffer<double>::const_iterator it;
     int count = 0;
     for (it = m_samples.begin(); it != m_samples.end(); ++it)
@@ -168,7 +173,7 @@ void TimestampEstimator::dumpInternalState() const
 }
 
 int TimestampEstimator::getLostSampleCount() const
-{ return m_missing_samples; }
+{ return m_missing_samples_total; }
 
 void TimestampEstimator::shortenSampleList(double current)
 {
@@ -304,25 +309,54 @@ base::Time TimestampEstimator::update(base::Time time)
     // This is made so that we are robust to losing a single sample even if
     // m_lost_threshold > 10 (for instance)
     //
-    // The issue here is that, if e.g. 10 samples are lost at once, then the
-    // estimator will take 10 * m_lost_threshold samples to recover
-    if (m_lost_threshold != INT_MAX)
+    // It is therefore also the number of calls to update() that are required
+    // before we can detect a lost sample
+    if (m_expected_loss_timeout == 0)
+    {
+        m_rejected_expected_losses += m_expected_losses;
+        m_expected_losses = 0;
+    }
+    else
+        --m_expected_loss_timeout;
+
+    int lost_count = 0;
+    if (m_expected_losses > 0)
+    {
+        // In principle, we should do both the expected_loss and m_lost
+        // detection at the same time. But it's complicated and I'm lazy, so I'd
+        // rather KISS it.
+
+        // We calculate a different sample_distance. If we have some suspicion
+        // that we did lose samples, we take timestamps that are at 1.9 * period
+        // as distance=2 instead of 1 in the normal case
+        int sample_distance = (current - m_last + period * 0.1) / period;
+        if (sample_distance > 1)
+        {
+            lost_count = std::min(sample_distance - 1, m_expected_losses);
+            m_expected_losses -= lost_count;
+        }
+    }
+    else if (m_lost_threshold != INT_MAX)
     {
         int sample_distance = (current - m_last) / period;
-        if (sample_distance > 1 && m_have_last_index)
+        if (sample_distance > 1)
         {
-            LOG_WARN_S << "detected lost samples even though some sample indexes were provided. You should probably set the lost threshold to INT_MAX";
             m_lost.push_back(sample_distance - 1);
+            if (static_cast<int>(m_lost.size()) > m_lost_threshold)
+                lost_count += *std::min_element(m_lost.begin(), m_lost.end());
         }
-        else
-            m_lost.clear();
+    }
 
-        if (static_cast<int>(m_lost.size()) > m_lost_threshold)
+    if (lost_count > 0)
+    {
+        for (int i = 0; i < lost_count; ++i)
         {
-            int lost_count = *std::min_element(m_lost.begin(), m_lost.end());
-            for (int i = 0; i < lost_count; ++i)
-                updateLoss();
+            m_missing_samples++;
+            m_missing_samples_total++;
+            pushSample(base::unset<double>());
+            m_last += period;
         }
+        m_lost.clear();
     }
 
     // m_last is tracking the current base time, i.e. the best estimate for the
@@ -380,16 +414,10 @@ void TimestampEstimator::resetBaseTime(double new_value, double reset_time)
         updateReference(m_last_reference);
 }
 
-base::Time TimestampEstimator::updateLoss()
+void TimestampEstimator::updateLoss()
 {
-    pushSample(base::unset<double>());
-    m_missing_samples++;
-
-    if (haveEstimate()) {
-	double period = getPeriodInternal();
-	m_last = m_last + period;
-    }
-    return base::Time::fromSeconds(m_last - m_latency) + m_zero;
+    m_expected_losses++;
+    m_expected_loss_timeout = 10;
 }
 
 void TimestampEstimator::updateReference(base::Time ts)
@@ -451,6 +479,9 @@ TimestampEstimatorStatus TimestampEstimator::getStatus() const
     status.period = getPeriod();
     status.latency = getLatency();
     status.lost_samples = getLostSampleCount();
+    status.lost_samples_total = m_missing_samples_total;
+    status.expected_losses = m_expected_losses;
+    status.rejected_expected_losses = m_rejected_expected_losses;
     status.window_size = m_samples.size();
     status.window_capacity = m_samples.capacity();
     status.base_time = base::Time::fromSeconds(m_base_time_reset) + m_zero;
@@ -464,7 +495,6 @@ std::ostream& aggregator::operator << (std::ostream& stream, TimestampEstimatorS
         << "stamp: " << status.stamp.toSeconds() << "\n"
         << "period: " << status.period.toSeconds() << "\n"
         << "latency: " << status.latency.toSeconds() << "\n"
-        << "max_jitter: " << status.max_jitter.toSeconds() << "\n"
         << "lost_samples: " << status.lost_samples << "\n"
         << "window_size: " << status.window_size << std::endl;
     return stream;

@@ -17,9 +17,9 @@ namespace aggregator {
          * provided)
          */
         base::Time latency;
-        /** The maximum jitter value received so far
+        /** Total count of lost samples
          */
-        base::Time max_jitter;
+        int lost_samples_total;
         /** Count of lost samples currently stored in the estimator
          */
         int lost_samples;
@@ -35,6 +35,14 @@ namespace aggregator {
         /** Offset at the last reset of base_time
          */
         base::Time base_time_reset_offset;
+        /** Losses that have been announced using updateLoss, but have yet to be
+         * seen in the time stream
+         */
+        int expected_losses;
+        /** The number of losses announced with updateLoss that got rejected by
+         * the estimator
+         */
+        int rejected_expected_losses;
 
         TimestampEstimatorStatus()
             : lost_samples(0) {}

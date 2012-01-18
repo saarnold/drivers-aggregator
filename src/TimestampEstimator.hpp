@@ -108,6 +108,9 @@ namespace aggregator
 	/** Initial period used when m_samples is empty */
 	double m_initial_period;
 
+	/** Total number of missing samples */
+	int m_missing_samples_total;
+
 	/** number of missing samples recorded in m_samples */
 	unsigned int m_missing_samples;
 
@@ -119,6 +122,21 @@ namespace aggregator
 
         /** The last time given to updateReference */
         base::Time m_last_reference;
+
+        /** The count of samples that are expected to be lost within
+         * expected_loss_timeout calls to update().
+         */
+        int m_expected_losses;
+
+        /** The count of samples that are expected to be lost within
+         * expected_loss_timeout calls to update().
+         */
+        int m_rejected_expected_losses;
+
+        /** Count of cycles during which m_expected_losses is expected to be
+         * valid
+         */
+        int m_expected_loss_timeout;
 
         /** Set the base time to the given value. reset_time is used in update()
          * to trigger new updates when necessary
@@ -208,7 +226,7 @@ namespace aggregator
 	base::Time update(base::Time ts, int64_t index);
 
         /** Updates the estimate for a known lost sample */
-	base::Time updateLoss();
+	void updateLoss();
 
         /** Updates the estimate using a reference */
 	void updateReference(base::Time ts);
