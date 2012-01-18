@@ -94,6 +94,11 @@ namespace aggregator
          */
 	double m_latency;
 
+        /** The raw latency, i.e. the unprocessed difference between the
+         * estimator's last estimated time and last received reference time
+         */
+        double m_latency_raw;
+
         /** Apriori latency provided to the estimator's constructor
          *
          * Zero if none is provided

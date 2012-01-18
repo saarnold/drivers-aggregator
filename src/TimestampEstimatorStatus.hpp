@@ -17,6 +17,15 @@ namespace aggregator {
          * provided)
          */
         base::Time latency;
+        /** Raw latency: if a reference time stream is given, this is the raw
+         * difference between the last given reference time and the last
+         * estimated raw time
+         *
+         * It is not used internally: it is meant only as a debugging and
+         * monitoring information
+         */
+        base::Time latency_raw;
+
         /** Total count of lost samples
          */
         int lost_samples_total;
