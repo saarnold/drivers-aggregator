@@ -126,17 +126,45 @@ double TimestampEstimator::getPeriodInternal() const
         circular_buffer<double>::const_reverse_iterator latest_it;
         //ignore lost samples(unset value) at the end of m_samples
         for(latest_it = m_samples.rbegin();
-                base::isUnset(*latest_it) && latest_it != m_samples.rend();
+                (latest_it != m_samples.rend()) && base::isUnset(*latest_it);
                 latest_it++, count--)
         {}
-        double latest = *latest_it;
         if (count <= 1)
             throw std::logic_error("getPeriodInternal() called with no initial period and less than 2 valid samples");
 
+        double latest = *latest_it;
         // m_samples.front() is valid as shortenSampleList makes sure that it is
         double earliest = m_samples.front();
+
+        if (base::isUnset(latest))
+        {
+            dumpInternalState();
+            throw std::logic_error("getPeriodInternal(): latest == NaN");
+
+        }
+        else if (base::isUnset(earliest))
+        {
+            dumpInternalState();
+            throw std::logic_error("getPeriodInternal(): earliest == NaN");
+        }
         return (latest - earliest) / (count - 1);
     }
+}
+
+void TimestampEstimator::dumpInternalState() const
+{
+    std::cout << m_samples.size() << " samples in buffer" << std::endl;
+    std::cout << "  capacity=" << m_samples.capacity() << std::endl;
+    std::cout << "  m_missing_samples=" << m_missing_samples << std::endl;
+    circular_buffer<double>::const_iterator it;
+    int count = 0;
+    for (it = m_samples.begin(); it != m_samples.end(); ++it)
+    {
+        std::cout << *it << std::endl;
+        if (base::isUnset(*it))
+            count++;
+    }
+    std::cout << "  found " << count << " unset samples in the buffer" << std::endl;
 }
 
 int TimestampEstimator::getLostSampleCount() const
@@ -149,7 +177,8 @@ void TimestampEstimator::shortenSampleList(double current)
 	// Compute the period up to now for later reuse
 	double period = getPeriodInternal();
 
-	//scan forward until we hit the window size
+        //scan forward until we hit the window size, and unconditionally skip
+        //any lost samples queued at the end of sample list in the process
         circular_buffer<double>::iterator end = m_samples.begin();
 	double min_time = current - m_window;
 	while(end != m_samples.end() && (base::isUnset(*end) || *end < min_time))
@@ -166,6 +195,7 @@ void TimestampEstimator::shortenSampleList(double current)
             return;
         }
 
+        // window_begin is guaranteed to point to a valid sample
         circular_buffer<double>::iterator window_begin = end;
 
 	//scan backward until we find a gap that is at least period sized.
@@ -175,29 +205,26 @@ void TimestampEstimator::shortenSampleList(double current)
         //The 0.9 factor on the period is here to allow a bit of jitter.
         //Otherwise, we might end up keeping too much data for too long
         circular_buffer<double>::iterator last_good = end;
-	int smp_count = 0;
-	while(end != m_samples.begin())
+	int sample_count = 0;
+	while (end != m_samples.begin())
 	{
-	    if (*end > 0)
+	    if (!base::isUnset(*end))
 	    {
-		if (smp_count > 0 && (*last_good-*end) / smp_count >= 0.9 * period)
+		if (sample_count > 0 && (*last_good-*end) / sample_count >= 0.5 * period)
 		    break;
 
 		last_good = end;
-		smp_count = 0;
+		sample_count = 0;
 	    }
 	    end--;
-	    smp_count++;
+	    sample_count++;
 	}
 
-	//if we didn't find anything and the buffer is too large already,
-	//fall back to real window begin
-	if (end == m_samples.begin() && *end < min_time - m_window)
+	//if we didn't find anything, fall back to real window begin
+	if (end == m_samples.begin() || (*end < min_time - m_window))
 	    end = window_begin;
 
-	//scan forward again as long as we find lost samples
-	for(;end != m_samples.end() && base::isUnset(*end); end++) {}
-
+        // Update the m_missing_samples counter
         circular_buffer<double>::iterator it;
 	for(it = m_samples.begin(); it != end; it++) {
 	    if (base::isUnset(*it))
@@ -225,7 +252,7 @@ base::Time TimestampEstimator::update(base::Time time)
     // Remove values from m_samples that are outside the required window
     shortenSampleList(current);
 
-    // If we have an initial period, fill m_samples using it
+    // If there are no samples so far, reinitialize the state of the estimator
     if (m_samples.empty())
     {
         resetBaseTime(current, current);
@@ -233,36 +260,7 @@ base::Time TimestampEstimator::update(base::Time time)
         return base::Time::fromSeconds(m_last - m_latency) + m_zero;
     }
 
-    // If we have an initial period, m_samples has been sized already. Since
-    // push_back will override the beginning of the circular buffer, there is
-    // nothing to do if the buffer is full
-    //
-    // If we don't have an initial period, however, we have to dynamically
-    // update its capacity using the current period estimate.
-    if (m_samples.full() && !m_initial_period)
-    {
-        if (haveEstimate())
-        {
-            double period = getPeriodInternal();
-            size_t new_capacity = 10 + (m_window + period) / period;
-            if (m_samples.capacity() < new_capacity)
-                m_samples.set_capacity(new_capacity);
-        }
-        else
-        {
-            m_samples.set_capacity(20 + m_samples.capacity());
-        }
-    }
-
-    // Add the new input to the sample set
-    m_samples.push_back(current);
-
-    // Not enough samples, just return the input value.
-    //
-    // This can happen if we have a sample set full of lost samples. Not very
-    // likely, but no impossible either
-    if (!haveEstimate())
-        return base::Time::fromSeconds(m_last - m_latency) + m_zero;
+    pushSample(current);
 
     // Recompute the period
     double period = getPeriodInternal();
@@ -341,8 +339,36 @@ base::Time TimestampEstimator::update(base::Time time)
     else
         m_last = m_last + period;
 
-    m_max_jitter = std::max(static_cast<double>(m_max_jitter), current - m_last);
     return base::Time::fromSeconds(m_last - m_latency) + m_zero;
+}
+
+void TimestampEstimator::pushSample(double current)
+{
+    // If we have an initial period, m_samples has been sized already. Since
+    // push_back will override the beginning of the circular buffer, there is
+    // nothing to do if the buffer is full
+    //
+    // If we don't have an initial period, however, we have to dynamically
+    // update its capacity using the current period estimate.
+    if (m_samples.full())
+    {
+        if (haveEstimate())
+        {
+            double period = getPeriodInternal();
+            size_t new_capacity = 1.5 * (m_window + period) / period;
+            if (m_samples.capacity() < new_capacity)
+                m_samples.set_capacity(new_capacity);
+            else
+                m_samples.set_capacity(20 + m_samples.capacity());
+        }
+        else
+        {
+            m_samples.set_capacity(20 + m_samples.capacity());
+        }
+    }
+
+    // Add the new input to the sample set
+    m_samples.push_back(current);
 }
 
 void TimestampEstimator::resetBaseTime(double new_value, double reset_time)
@@ -356,7 +382,7 @@ void TimestampEstimator::resetBaseTime(double new_value, double reset_time)
 
 base::Time TimestampEstimator::updateLoss()
 {
-    m_samples.push_back(base::unset<double>());
+    pushSample(base::unset<double>());
     m_missing_samples++;
 
     if (haveEstimate()) {
@@ -373,11 +399,16 @@ void TimestampEstimator::updateReference(base::Time ts)
 
     double period = getPeriodInternal();
     double hw_time   = (ts - m_zero).toSeconds();
-    double est_time = m_last - m_latency;
-    int n = floor((est_time + period * 0.1 - hw_time)/period);
+
+    // Compute first the fractional part of the latency
+    double est_time = m_last;
+    int n = floor((est_time - hw_time)/period);
     double diff = est_time - (hw_time + n * period);
 
-    m_latency += diff;
+    // Get the integral part of the latency from the current m_latency value
+    double latency_int = floor(m_latency / period);
+
+    m_latency = latency_int * period + diff;
     m_last_reference = ts;
 }
 
@@ -391,7 +422,7 @@ bool TimestampEstimator::haveEstimate() const
 
 base::Time TimestampEstimator::update(base::Time time, int64_t index)
 {
-    if (!m_have_last_index || index < m_last_index)
+    if (!m_have_last_index || index <= m_last_index)
     {
 	m_have_last_index = true;
         m_last_index = index;

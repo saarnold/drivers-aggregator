@@ -133,6 +133,13 @@ namespace aggregator
 			   double initial_period,
 			   double min_latency,
 			   int lost_threshold = 2);
+
+        /** Internal method that pushes a new sample on m_samples while making
+         * sure that internal constraints are met (as e.g. that there are no NaN
+         * at the beginning of the buffer)
+         */
+        void pushSample(double time);
+
     public:
         /** Creates a timestamp estimator
          *
@@ -239,6 +246,10 @@ namespace aggregator
          * This is constant time
          */
         TimestampEstimatorStatus getStatus() const;
+
+        /** Dumps part of the estimator's internal state to std::cout
+         */
+        void dumpInternalState() const;
     };
 }
 
