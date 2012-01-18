@@ -478,7 +478,7 @@ TimestampEstimatorStatus TimestampEstimator::getStatus() const
     status.stamp = base::Time::fromSeconds(m_last - m_latency) + m_zero;
     status.period = getPeriod();
     status.latency = getLatency();
-    status.lost_samples = getLostSampleCount();
+    status.lost_samples = m_missing_samples;
     status.lost_samples_total = m_missing_samples_total;
     status.expected_losses = m_expected_losses;
     status.rejected_expected_losses = m_rejected_expected_losses;
