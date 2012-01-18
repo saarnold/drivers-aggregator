@@ -72,6 +72,13 @@ namespace aggregator
          */
         double m_base_time_reset;
 
+        /** The offset between the last base time and the new base time at the
+         * last call to resetBaseTime 
+         *
+         * Used for statistics / monitoring purposes only
+         */
+        double m_base_time_reset_offset;
+
         /** The latency, i.e. the fixed (or, more accurately, slow drifting)
          * difference between the incoming timestamps and the actual timestamps
          *

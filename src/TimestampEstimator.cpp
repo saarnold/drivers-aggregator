@@ -78,10 +78,9 @@ void TimestampEstimator::internalReset(double window,
     m_window = window;
     m_lost_threshold = lost_threshold;
     m_lost.clear();
-    m_lost_total = 0;
     m_base_time_reset = 0;
+    m_base_time_reset_offset = 0;
     m_last_reference = base::Time();
-    m_max_jitter = 0;
     m_latency = initial_latency;
     m_initial_latency = initial_latency;
     m_initial_period = initial_period;
@@ -141,7 +140,7 @@ double TimestampEstimator::getPeriodInternal() const
 }
 
 int TimestampEstimator::getLostSampleCount() const
-{ return m_lost_total; }
+{ return m_missing_samples; }
 
 void TimestampEstimator::shortenSampleList(double current)
 {
@@ -348,6 +347,7 @@ base::Time TimestampEstimator::update(base::Time time)
 
 void TimestampEstimator::resetBaseTime(double new_value, double reset_time)
 {
+    m_base_time_reset_offset = new_value - m_last;
     m_last = new_value;
     m_base_time_reset = reset_time;
     if (!m_last_reference.isNull())
@@ -413,20 +413,17 @@ base::Time TimestampEstimator::getLatency() const
     return base::Time::fromSeconds(m_latency);
 }
 
-base::Time TimestampEstimator::getMaxJitter() const
-{
-    return base::Time::fromSeconds(m_max_jitter);
-}
-
 TimestampEstimatorStatus TimestampEstimator::getStatus() const
 {
     TimestampEstimatorStatus status;
     status.stamp = base::Time::fromSeconds(m_last - m_latency) + m_zero;
     status.period = getPeriod();
     status.latency = getLatency();
-    status.max_jitter = getMaxJitter();
     status.lost_samples = getLostSampleCount();
     status.window_size = m_samples.size();
+    status.window_capacity = m_samples.capacity();
+    status.base_time = base::Time::fromSeconds(m_base_time_reset) + m_zero;
+    status.base_time_reset_offset = base::Time::fromSeconds(m_base_time_reset_offset);
     return status;
 }
 

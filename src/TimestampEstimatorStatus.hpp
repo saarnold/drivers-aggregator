@@ -20,12 +20,21 @@ namespace aggregator {
         /** The maximum jitter value received so far
          */
         base::Time max_jitter;
-        /** Count of lost samples so far
+        /** Count of lost samples currently stored in the estimator
          */
         int lost_samples;
-        /** Size of the actual internal window, in samples
+        /** Count of samples currently stored in the estimator
          */
         int window_size;
+        /** Maximum window capacity
+         */
+        int window_capacity;
+        /** Time at which the base time got reset last
+         */
+        base::Time base_time;
+        /** Offset at the last reset of base_time
+         */
+        base::Time base_time_reset_offset;
 
         TimestampEstimatorStatus()
             : lost_samples(0) {}
