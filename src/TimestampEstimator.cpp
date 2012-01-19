@@ -350,6 +350,7 @@ base::Time TimestampEstimator::update(base::Time time)
 
     if (lost_count > 0)
     {
+        m_samples.pop_back();
         for (int i = 0; i < lost_count; ++i)
         {
             m_missing_samples++;
@@ -357,6 +358,7 @@ base::Time TimestampEstimator::update(base::Time time)
             pushSample(base::unset<double>());
             m_last += period;
         }
+        pushSample(current);
         m_lost.clear();
     }
 
