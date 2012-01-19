@@ -73,6 +73,7 @@ void TimestampEstimator::internalReset(double window,
 				       double initial_latency,
 				       int lost_threshold)
 {
+    m_last = 0;
     m_got_full_window = false;
     m_zero = base::Time();
     m_window = window;
@@ -83,7 +84,6 @@ void TimestampEstimator::internalReset(double window,
     m_last_reference = base::Time();
     m_latency = initial_latency;
     m_initial_latency = initial_latency;
-    m_latency_raw = 0;
     m_initial_period = initial_period;
     m_missing_samples = 0;
     m_missing_samples_total = 0;
@@ -440,7 +440,6 @@ void TimestampEstimator::updateReference(base::Time ts)
     double latency_int = floor(m_latency / period);
 
     m_latency = latency_int * period + diff;
-    m_latency_raw = est_time - hw_time;
     m_last_reference = ts;
 }
 
@@ -490,7 +489,12 @@ TimestampEstimatorStatus TimestampEstimator::getStatus() const
     status.window_capacity = m_samples.capacity();
     status.base_time = base::Time::fromSeconds(m_base_time_reset) + m_zero;
     status.base_time_reset_offset = base::Time::fromSeconds(m_base_time_reset_offset);
-    status.latency_raw = base::Time::fromSeconds(m_latency_raw);
+    if (m_samples.empty())
+        status.time_raw = base::Time();
+    else
+        status.time_raw = base::Time::fromSeconds(m_samples.back()) + m_zero;
+
+    status.reference_time_raw = m_last_reference;
     return status;
 }
 
