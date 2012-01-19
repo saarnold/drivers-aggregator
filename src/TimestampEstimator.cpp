@@ -432,9 +432,11 @@ void TimestampEstimator::updateReference(base::Time ts)
     double hw_time   = (ts - m_zero).toSeconds();
 
     // Compute first the fractional part of the latency
-    double est_time = m_last;
-    int n = floor((est_time - hw_time)/period);
-    double diff = est_time - (hw_time + n * period);
+    //
+    // Note that floor returns the integer that is smaller or equal to its
+    // argument, so it works regardless of m_last <=> hw_time
+    double diff_int = floor((m_last - hw_time) / period);
+    double diff = m_last - (hw_time + diff_int * period);
 
     // Get the integral part of the latency from the current m_latency value
     double latency_int = floor(m_latency / period);
