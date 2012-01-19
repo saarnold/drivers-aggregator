@@ -412,7 +412,8 @@ void TimestampEstimator::pushSample(double current)
 
 void TimestampEstimator::resetBaseTime(double new_value, double reset_time)
 {
-    m_base_time_reset_offset = new_value - m_last;
+    if (m_last != 0)
+        m_base_time_reset_offset = new_value - m_last;
     m_last = new_value;
     m_base_time_reset = reset_time;
     if (!m_last_reference.isNull())
