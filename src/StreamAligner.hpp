@@ -93,6 +93,7 @@ namespace aggregator {
 		status.buffer_fill = buffer.size();
 		status.latest_data_time = latestDataTime();
  		status.earliest_data_time = earliestDataTime();
+		status.active = isActive();
 		return status;
 	    }
 
@@ -189,6 +190,7 @@ namespace aggregator {
 		status.samples_dropped_buffer_full = 0;
 		status.samples_dropped_late_arriving = 0;
 		status.buffer_fill = 0;
+		status.active = true;
 	    };
 	};
 
