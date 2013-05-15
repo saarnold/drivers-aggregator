@@ -387,7 +387,9 @@ namespace aggregator {
 	    }
 
 	    if( bufferSize == 0 )
-		LOG_DEBUG("dynamically allocating stream aligner buffer for stream: %s", name);
+	    {
+		LOG_DEBUG_S << "dynamically allocating stream aligner buffer for stream: " << name;
+	    }
 
 	    StreamBase *newStream = new Stream<T>(callback, bufferSize, period, priority, name);
 	    
