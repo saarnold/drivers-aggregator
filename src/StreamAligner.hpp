@@ -2,6 +2,7 @@
 #define __AGGREGATOR_HPP__
 
 #include <base/time.h>
+#include <base/logging.h>
 #include <vector>
 #include <base/circular_buffer.h>
 #include <algorithm>
@@ -386,7 +387,7 @@ namespace aggregator {
 	    }
 
 	    if( bufferSize == 0 )
-		std::cerr << "WARNING: a buffer size of 0 means a dynamically allocating stream aligner buffer" << std::endl;
+		LOG_DEBUG("dynamically allocating stream aligner buffer for stream: %s", name);
 
 	    StreamBase *newStream = new Stream<T>(callback, bufferSize, period, priority, name);
 	    
