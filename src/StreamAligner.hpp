@@ -62,6 +62,7 @@ namespace aggregator {
 		: bufferSize( bufferSize ), callback(callback), period(period), lastTime(base::Time::fromSeconds(0)), priority(priority)
             {
                 status.name = name;
+		status.priority = priority;
 
                 if (bufferSize > 0)
                     buffer.set_capacity( bufferSize );
