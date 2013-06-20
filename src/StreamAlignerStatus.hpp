@@ -67,7 +67,7 @@ namespace aggregator
 	 * same timestamp are available on two different streams, the stream
 	 * with the lower priority value is processed first.
 	 */
-	int priority;
+	int64_t priority;
 	
 	StreamStatus() : buffer_size(0), buffer_fill(0), samples_received(0), 
 			samples_processed(0), samples_dropped_buffer_full(0), 
