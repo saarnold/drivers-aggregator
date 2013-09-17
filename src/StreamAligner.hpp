@@ -111,11 +111,6 @@ namespace aggregator {
 
 	    void push(const base::Time &ts, const T &data ) 
 	    { 
-		// mark stream as active, since it is receiving data items will
-		// have no effect on an already active stream, but enables
-		// streams which have been marked passive before.
-		setActive( true );
-
 		if(ts < lastTime)
 		{
 		    status.samples_backward_in_time++;
@@ -410,7 +405,11 @@ namespace aggregator {
 	    return streams.size() - 1;
 	}
 	
-	/** Push new data into the stream
+	/** @brief Push new data into the stream
+	 *
+	 * Note that if the stream was previously inactive, this call will make
+	 * it active implicetely.
+	 *
 	 * @param ts - the timestamp of the data item
 	 * @param data - the data added to the stream
 	 */
@@ -419,24 +418,29 @@ namespace aggregator {
 	    if( !streams.at(idx) )
 		throw std::runtime_error("invalid stream index.");
 
-	    streams[idx]->status.samples_received++;
-	    streams[idx]->status.latest_sample_time = ts;
+	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
+	    assert( stream );
+
+	    stream->status.samples_received++;
+	    stream->status.latest_sample_time = ts;
+
+	    // mark stream as active, since it is receiving data items will
+	    // have no effect on an already active stream, but enables
+	    // streams which have been marked passive before.
+	    stream->setActive( true );
 
 	    //any sample, that is older than the last replayed sample
 	    //will never be played back and gets dropped by default
 	    if(ts < current_ts) 
 	    {
 		status.samples_dropped_late_arriving++;
-		streams[idx]->status.samples_dropped_late_arriving++;
+		stream->status.samples_dropped_late_arriving++;
 		return;
 	    }
 
 	    if( ts > latest_ts )
 		latest_ts = ts;
 	    
-	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
-	    assert( stream );
-
 	    stream->push( ts, data );
 	}
 
