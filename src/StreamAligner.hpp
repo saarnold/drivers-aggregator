@@ -43,6 +43,7 @@ namespace aggregator {
 		bool active;
 	};
 
+        public:
 	template <class T> class Stream : public StreamBase
 	{
 	public:
