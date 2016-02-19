@@ -25,8 +25,11 @@ std::ostream &operator<<(std::ostream &os, const aggregator::StreamAlignerStatus
     int cnt = 0;
     for(std::vector<aggregator::StreamStatus>::const_iterator it = status.streams.begin(); it != status.streams.end(); it++)
     {
-	if(it->active)
-	    os << cnt << "\t" << counters(os, *it); 
+        if(it->active)
+        {
+            os << cnt << "\t";
+            counters(os, *it);
+        }
 	cnt++;
     }
     
@@ -35,7 +38,10 @@ std::ostream &operator<<(std::ostream &os, const aggregator::StreamAlignerStatus
     for(std::vector<aggregator::StreamStatus>::const_iterator it = status.streams.begin(); it != status.streams.end(); it++)
     {
 	if(it->active)
-	    os << cnt << "\t" << timers(os, *it, status.current_time); 
+        {
+            os << cnt << "\t";
+            timers(os, *it, status.current_time); 
+        }
 	cnt++;
     }
     return os;
