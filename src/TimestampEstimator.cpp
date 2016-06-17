@@ -3,8 +3,8 @@
 #include <iosfwd>
 #include <stdexcept>
 #include <iostream>
-#include <base/float.h>
-#include <base/logging.h>
+#include <base/Float.hpp>
+#include <base/Logging.hpp>
 
 using namespace aggregator;
 using boost::circular_buffer;

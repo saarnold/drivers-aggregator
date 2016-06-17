@@ -1,10 +1,10 @@
 #ifndef __AGGREGATOR_HPP__
 #define __AGGREGATOR_HPP__
 
-#include <base/time.h>
-#include <base/logging.h>
+#include <base/Time.hpp>
+#include <base/Logging.hpp>
 #include <vector>
-#include <base/circular_buffer.h>
+#include <base/CircularBuffer.hpp>
 #include <algorithm>
 #include <boost/function.hpp>
 #include <boost/tuple/tuple.hpp>

@@ -1,7 +1,7 @@
 #ifndef __AGGREGATOR__STREAMALIGNERSTATUS_HPP__
 #define __AGGREGATOR__STREAMALIGNERSTATUS_HPP__
 
-#include <base/time.h>
+#include <base/Time.hpp>
 #include <vector>
 
 namespace aggregator 

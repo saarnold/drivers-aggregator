@@ -1,8 +1,8 @@
 #ifndef AGGREGATOR_TIMESTAMP_ESTIMATOR_HPP
 #define AGGREGATOR_TIMESTAMP_ESTIMATOR_HPP
 
-#include <base/time.h>
-#include <base/circular_buffer.h>
+#include <base/Time.hpp>
+#include <base/CircularBuffer.hpp>
 #include <vector>
 
 #include <aggregator/TimestampEstimatorStatus.hpp>

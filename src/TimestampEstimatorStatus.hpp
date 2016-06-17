@@ -1,7 +1,7 @@
 #ifndef AGGREGATOR_TIMESTAMP_ESTIMATOR_STATUS_HPP
 #define AGGREGATOR_TIMESTAMP_ESTIMATOR_STATUS_HPP
 
-#include <base/time.h>
+#include <base/Time.hpp>
 
 namespace aggregator {
     /** Structure used to report the internal state of a TimestampEstimator
