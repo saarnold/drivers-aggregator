@@ -2,7 +2,7 @@
 #define __AGGREGATOR_HPP__
 
 #include <base/Time.hpp>
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 #include <vector>
 #include <base/CircularBuffer.hpp>
 #include <algorithm>

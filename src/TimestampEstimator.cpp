@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <base/Float.hpp>
-#include <base/Logging.hpp>
+#include <base-logging/Logging.hpp>
 
 using namespace aggregator;
 using boost::circular_buffer;
