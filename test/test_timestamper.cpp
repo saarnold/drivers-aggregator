@@ -11,6 +11,7 @@
 
 #include <aggregator/TimestampEstimator.hpp>
 #include <fstream>
+#include <iomanip>
 
 using namespace aggregator;
 
