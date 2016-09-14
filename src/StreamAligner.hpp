@@ -2,6 +2,7 @@
 #define __AGGREGATOR_HPP__
 
 #include <base/Time.hpp>
+#include <cmath>
 #include <base-logging/Logging.hpp>
 #include <vector>
 #include <base/CircularBuffer.hpp>
@@ -374,12 +375,12 @@ namespace aggregator {
 		else if( period < base::Time() )
 		{
 		    // for a negative period, just calculate the buffer size, but don't set any lookahead.
-		    bufferSize = buffer_size_factor * ceil( timeout.toSeconds() / -period.toSeconds() );
+		    bufferSize = buffer_size_factor * std::ceil( timeout.toSeconds() / -period.toSeconds() );
 		    period = base::Time();
 		}
 		else
 		{
-		    bufferSize = buffer_size_factor * ceil( timeout.toSeconds() / period.toSeconds() );
+		    bufferSize = buffer_size_factor * std::ceil( timeout.toSeconds() / period.toSeconds() );
 		}
 	    }
 
