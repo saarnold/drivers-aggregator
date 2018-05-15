@@ -1,0 +1,21 @@
+<package format="2">
+  <name>rock-aggregator</name>
+  <version>0.0.0</version>
+  <description>basic tools to manage sample streams</description>
+
+  <maintainer email="sylvain.joyeux@m4x.org">Sylvain Joyeux</maintainer>
+  <author     email="jakob.schwendner@dfki.de">Jakob Schwendner</author>
+
+  <license>LGPL v2 or later</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+
+  <depend>rock-types</depend>
+
+  <doc_depend>doxygen</doc_depend>
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>
+
